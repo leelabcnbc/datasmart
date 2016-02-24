@@ -7,7 +7,7 @@ import os
 import subprocess
 import tempfile
 
-from adam import global_config
+from datasmart import global_config
 from .base import Base
 from . import util
 
@@ -26,9 +26,10 @@ class FileTransfer(Base):
     Currently, file transfer is handled via ``rsync``.
     """
 
+    config_path = ('core', 'filetransfer')
+
     def __init__(self):
         super().__init__()
-        self.load_default_config(['core', 'filetransfer'])
 
     @staticmethod
     def normalize_config(config):
@@ -59,7 +60,6 @@ class FileTransfer(Base):
 
         config['default_site'] = FileTransfer._normalize_site(config['default_site'])
 
-        print(config)
         return config
 
     def _reformat_subdirs(self, subdirs: list) -> str:
@@ -118,6 +118,11 @@ class FileTransfer(Base):
         os.makedirs(savepath, exist_ok=True)
         # get actual src site
         src_site = self._normalize_site(self._site_mapping(site))
+        # if src_site is local yet original passed site is remote (so there's mapping)
+        # we need to make the filelist relative.
+        if src_site['local'] and (not site['local']):
+            filelist = [util.get_relative_path(p) for p in filelist]
+
         dest_site = self._normalize_site({"path": savepath, "local": True})
         ret_filelist = self._transfer(src_site, dest_site,
                                       filelist, {"relative": relative})
@@ -173,7 +178,7 @@ class FileTransfer(Base):
         # construct the rsync command.
         # since I use from-file by default, it's relative.
         rsync_relative_arg = "--relative" if options['relative'] else "--no-relative"
-        rsync_ssh_arg = ""
+        rsync_ssh_arg = []
 
         rsync_src_spec, rsync_ssh_arg_src = self._get_rsync_site_spec(src, "/")
         rsync_dest_spec, rsync_ssh_arg_dest = self._get_rsync_site_spec(dest)
@@ -195,13 +200,12 @@ class FileTransfer(Base):
 
         rsync_filelist_arg = "--files-from={}".format(rsync_filelist_path)
 
-        rsync_command = [
-            "rsync", "-azvP", rsync_relative_arg, rsync_ssh_arg, rsync_filelist_arg, rsync_src_spec, rsync_dest_spec
-        ]
-        # remove empty argument.
-        rsync_command = [x for x in rsync_command if x]
+        rsync_command = ["rsync", "-azvP",
+                         rsync_relative_arg] + rsync_ssh_arg + [rsync_filelist_arg, rsync_src_spec, rsync_dest_spec]
+
         print(" ".join(rsync_command))
-        subprocess.run(rsync_command, check=True)  # if not return 0, if fails.
+        stdout_arg = subprocess.PIPE if self.config['quiet'] else None
+        subprocess.run(rsync_command, check=True, stdout=stdout_arg)  # if not return 0, if fails.
 
         # delete the filelist
         os.remove(rsync_filelist_path)
@@ -244,7 +248,7 @@ class FileTransfer(Base):
                 prefix = site_info['push_prefix']
             assert isinstance(prefix, str), "prefix must be string!"
             rsync_site_spec = site_info['ssh_username'] + '@' + site['path'] + ':' + prefix
-            rsync_ssh_arg_site = '-e "ssh -p {}"'.format(site_info['ssh_port'])
+            rsync_ssh_arg_site = ['-e', "ssh -p {}".format(site_info['ssh_port'])]
 
         return rsync_site_spec, rsync_ssh_arg_site
 
@@ -252,7 +256,7 @@ class FileTransfer(Base):
         # normalize path
         rsync_filelist_value = [os.path.normpath(p) for p in filelist]
         for p in rsync_filelist_value:
-            assert p.strip() == p, "no spaces around filename!"
+            assert p.strip() == p, "no spaces around filename! this is good for your sanity."
         basename_list = [os.path.basename(p) for p in rsync_filelist_value]
         # make sure that there's no trivial file being copied.
         for b in basename_list:

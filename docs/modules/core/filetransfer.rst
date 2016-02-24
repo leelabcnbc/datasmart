@@ -2,5 +2,5 @@
 ``filetransfer`` module
 =======================
 
-.. automodule:: adam.core.filetransfer
+.. automodule:: datasmart.core.filetransfer
    :members:

@@ -2,5 +2,5 @@
 ``db`` module
 =============
 
-.. automodule:: adam.core.db
+.. automodule:: datasmart.core.db
    :members:

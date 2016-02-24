@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# adam documentation build configuration file, created by
-# sphinx-quickstart on Mon Feb 22 22:12:15 2016.
+# datasmart documentation build configuration file, created by
+# sphinx-quickstart on Wed Feb 24 16:11:53 2016.
 #
 # This file is execfile()d with the current directory set to its
 # containing dir.
@@ -36,6 +36,7 @@ extensions = [
     'sphinx.ext.inheritance_diagram'
 ]
 
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
@@ -51,7 +52,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = 'adam'
+project = 'datasmart'
 copyright = '2016, Yimeng Zhang'
 author = 'Yimeng Zhang'
 
@@ -205,7 +206,7 @@ html_static_path = ['_static']
 #html_search_scorer = 'scorer.js'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'adamdoc'
+htmlhelp_basename = 'datasmartdoc'
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -227,7 +228,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'adam.tex', 'adam Documentation',
+    (master_doc, 'datasmart.tex', 'datasmart Documentation',
      'Yimeng Zhang', 'manual'),
 ]
 
@@ -257,7 +258,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'adam', 'adam Documentation',
+    (master_doc, 'datasmart', 'datasmart Documentation',
      [author], 1)
 ]
 
@@ -271,8 +272,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'adam', 'adam Documentation',
-     author, 'adam', 'One line description of project.',
+    (master_doc, 'datasmart', 'datasmart Documentation',
+     author, 'datasmart', 'One line description of project.',
      'Miscellaneous'),
 ]
 
@@ -288,8 +289,10 @@ texinfo_documents = [
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 #texinfo_no_detailmenu = False
 
-# config for autodoc
 
 autoclass_content = 'both'
 autodoc_default_flags = ['members', 'undoc-members',
     'private-members', 'show-inheritance']
+
+# config for inheritance graph
+inheritance_graph_attrs = dict(rankdir="TB")

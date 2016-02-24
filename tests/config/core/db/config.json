@@ -1,0 +1,8 @@
+{
+  "url": "yimengzh.cnbc.cmu.edu",
+  "port": 27017,
+  "authentication": true,
+  "user": "test",
+  "password": "test",
+  "auth_db": "admin"
+}

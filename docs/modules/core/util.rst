@@ -2,5 +2,5 @@
 ``util`` module
 ===============
 
-.. automodule:: adam.core.util
+.. automodule:: datasmart.core.util
    :members:

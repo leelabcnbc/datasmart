@@ -1,0 +1,20 @@
+{
+  "timestamp": "{{timestamp}}",
+  "monkey": "randommonkey",
+  "code_repo": {
+    "repo_url": "{{repo_url}}",
+    "repo_hash": "{{repo_hash}}"
+  },
+  "experiment_name": "demo_experiment",
+  "recorded_files": {
+    "site": {
+      "path": "www.example.com",
+      "local": false
+    },
+    "filelist": [
+      "/leelab/data/xxx.NEV"
+    ]
+  },
+  "additional_parameters": "RF location: X: xx, Y: xx",
+  "notes": ""
+}

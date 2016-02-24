@@ -35,11 +35,12 @@
     "yimengzh.cnbc.cmu.edu": {
       "ssh_username": "yimengzh_everyday",
       "ssh_port": 5678,
-      "push_prefix": "/home/yimengzh_everday/datajoin_data"
+      "push_prefix": "/home/yimengzh_everyday/datajoin_data"
     }
   },
   "default_site": {
     "path": "/Users/yimengzh/datajoin_data",
     "local": true
-  }
+  },
+  "quiet": false
 }

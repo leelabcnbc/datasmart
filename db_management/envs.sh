@@ -1,0 +1,6 @@
+CONTAINER='leelab-mongo'
+DATA_CONTAINER="${CONTAINER}-data"
+BACKUP_HOST_DIR="/backup/mongodb_${CONTAINER}"
+BACKUP_DOCKER_DIR="/backup"
+IMAGE_NAME='mongo:3.2.1'
+HOST_PORT=27017

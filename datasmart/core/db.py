@@ -14,6 +14,7 @@ class DB(Base):
 
     It handles authentication, and provides a MongoClient instance for CRUD operations.
     """
+    config_path = ('core', 'db')
 
     def __init__(self):
         """ constructor for DB class.
@@ -21,13 +22,12 @@ class DB(Base):
 
         1. get the config file ``config/db/config.json`` under the directory consisting the invoked Python script.
         2. if the above step fails, load the default one:
-            .. literalinclude:: /../adam/config/core/db/config.json
+            .. literalinclude:: /../datasmart/config/core/db/config.json
                 :language: json
 
         :return: None
         """
         super().__init__()
-        self.load_default_config(['core', 'db'])
         self.client_instance = None
 
     def connect(self):
