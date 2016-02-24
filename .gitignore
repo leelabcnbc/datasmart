@@ -64,5 +64,9 @@ target/
 # PyCharm
 .idea
 
-# exclude external dir
-/cortex_expt_util/external/**
+# exclude test config
+/tests/config/**
+/tests/prepare_result.p
+/tests/template.json
+/tests/query_template.py
+
