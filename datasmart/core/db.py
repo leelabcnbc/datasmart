@@ -16,7 +16,7 @@ class DB(Base):
     """
     config_path = ('core', 'db')
 
-    def __init__(self):
+    def __init__(self, config=None):
         """ constructor for DB class.
         It will perform the following steps:
 
@@ -27,7 +27,7 @@ class DB(Base):
 
         :return: None
         """
-        super().__init__()
+        super().__init__(config)
         self.client_instance = None
 
     def connect(self):

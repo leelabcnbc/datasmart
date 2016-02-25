@@ -26,8 +26,8 @@ class CortexExpAction(ManualDBActionWithSchema):
     config_path = ('actions', 'cortex_exp')
     dbschema = CortexExpSchema
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, config=None):
+        super().__init__(config)
 
     @staticmethod
     def normalize_config(config: dict) -> dict:

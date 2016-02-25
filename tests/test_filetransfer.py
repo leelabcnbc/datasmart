@@ -95,13 +95,12 @@ def main_func():
         config_this['default_site']['local'] = True
         config_this['default_site']['path'] = default_site_path
         config_this['quiet'] = True  # less output.
-        filetransfer.set_config(config_this)
-
+        filetransfer_this = datasmart.core.filetransfer.FileTransfer(config_this)
         for x in itertools.product([subdirs, None], [True, False]):
             subdirs_this, relative = x
-            local_fetch(filetransfer, filelist, local_data_dir, external_site,
+            local_fetch(filetransfer_this, filelist, local_data_dir, external_site,
                         subdirs_this=subdirs_this, relative=relative)
-            local_push(filetransfer, filelist, local_data_dir, default_site_path,
+            local_push(filetransfer_this, filelist, local_data_dir, default_site_path,
                        subdirs_this=subdirs_this, relative=relative)
         print('pass {}'.format(i))
 

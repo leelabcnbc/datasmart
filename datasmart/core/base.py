@@ -7,19 +7,24 @@ from abc import ABC, abstractmethod
 from .. import global_config
 from . import util
 
+
 class Base(ABC):
     """ base class for all classes in Adam, primarily dealing with config loading.
     """
-    config_path = ('core','Base')
+    config_path = ('core', 'Base')
 
     @abstractmethod
-    def __init__(self) -> None:
+    def __init__(self, config=None) -> None:
         """ abstract constructor. force subclassing.
 
         :return: None
         """
         assert self.config_path is not Base.config_path
-        self._config = self.normalize_config(util.load_config(self.config_path))
+        if config is None:
+            self.__config = self.normalize_config(util.load_config(self.config_path))
+        else:
+            #  we allow you to do anything.
+            self.__config = config
 
     @property
     def config_path(self) -> tuple:
@@ -31,11 +36,11 @@ class Base(ABC):
         :param config_new: new config to be set.
         :return: None
         """
-        self._config = config_new
+        self.__config = config_new
 
     @property
     def config(self) -> dict:
-        return self._config
+        return self.__config
 
     @staticmethod
     def normalize_config(config: dict) -> dict:
@@ -59,4 +64,3 @@ class Base(ABC):
         :return: the global config.
         """
         return global_config
-

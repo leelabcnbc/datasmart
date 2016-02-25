@@ -12,8 +12,8 @@ from .dbschema import DBSchema
 
 class Action(Base):
     @abstractmethod
-    def __init__(self):
-        super().__init__()
+    def __init__(self, config=None):
+        super().__init__(config)
 
     @abstractmethod
     def prepare(self) -> None:
@@ -50,8 +50,8 @@ class DBAction(Action):
     table_path = (None, None)
 
     @abstractmethod
-    def __init__(self):
-        super().__init__()
+    def __init__(self, config=None):
+        super().__init__(config)
         prepare_path = self.get_prepare_path()
         self.__prepare_result_path = util.joinpath_norm(prepare_path, 'prepare_result.p')
         self.__query_template_path = util.joinpath_norm(prepare_path, 'query_template.py')
@@ -242,8 +242,8 @@ class DBActionWithSchema(DBAction):
         return {}
 
     @abstractmethod
-    def __init__(self):
-        super().__init__()
+    def __init__(self, config=None):
+        super().__init__(config)
         assert self.__class__.dbschema is not DBActionWithSchema.dbschema
         self._dbschema_instance = self.__class__.dbschema(self.get_schema_config())
 

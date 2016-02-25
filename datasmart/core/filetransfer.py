@@ -28,8 +28,8 @@ class FileTransfer(Base):
 
     config_path = ('core', 'filetransfer')
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, config=None):
+        super().__init__(config)
 
     @staticmethod
     def normalize_config(config):
