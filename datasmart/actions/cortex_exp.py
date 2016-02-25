@@ -1,11 +1,27 @@
 from datasmart.core.dbschema import DBSchema
 from datasmart.core import util
 from datasmart.core.action import ManualDBActionWithSchema
+import jsl
+from datasmart.core import schemautil
 import subprocess
+
+
+class CortexExpSchemaJSL(jsl.Document):
+    timestamp = jsl.StringField(format="date-time", required=True)
+    monkey = jsl.StringField(enum=["leo", "koko", "gabby", "frugo"], required=True)
+    code_repo = jsl.DocumentField(schemautil.GitRepoRef, required=True)
+    experiment_name = jsl.StringField(required=True)
+    recorded_files = jsl.DocumentField(schemautil.FileTransferSiteAndFileListRemote, required=True)
+    additional_parameters = jsl.StringField(required=True)
+    notes = jsl.StringField(required=True)
 
 
 class CortexExpSchema(DBSchema):
     schema_path = ('actions', 'cortex_exp')
+
+    def get_schema(self) -> dict:
+        print(schemautil.get_schema_string(CortexExpSchemaJSL))
+        return CortexExpSchemaJSL.get_schema()
 
     def __init__(self, config=None):
         super().__init__(config)
