@@ -39,6 +39,7 @@ class DBSchema(ABC):
     @abstractmethod
     def post_process_record(self, record: dict) -> dict:
         """ post processing of a record to be inserted.
+
         :param record: a Python dictionary of record
         :return: a Python dictionary ready to be inserted to DB.
         This is required for particular kinds of data types, such as date,
@@ -54,7 +55,8 @@ class DBSchema(ABC):
         return util.load_config(self.schema_path, 'schema.json')
 
     def get_template(self) -> str:
-        """
+        """ this is only useful if you are going to manually type in the template.
+
         :return: the **string** of a JSON document.
         """
         template_base = util.load_config(self.schema_path, 'template.json', load_json=False)
@@ -72,9 +74,8 @@ class DBSchema(ABC):
             return False
         return True
 
-    def generate_record(self, template):
-        # validate (string) record using the schema
-        record = json.loads(template)
+    def generate_record(self, record):
+        # validate record using the schema
         assert self.validate_record(record)
         # post process to make it ready to be pushed
         return self.post_process_record(record)

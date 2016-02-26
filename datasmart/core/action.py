@@ -1,7 +1,7 @@
 import os
 import pickle
 from abc import abstractmethod
-
+import json
 from bson import ObjectId
 
 from . import util
@@ -284,7 +284,7 @@ class ManualDBActionWithSchema(DBActionWithSchema):
 
     def import_record_template(self):
         with open(self.config['savepath'], 'rt') as f:
-            record = self.dbschema_instance.generate_record(f.read())
+            record = self.dbschema_instance.generate_record(json.loads(f.read()))
         assert len(self.result_ids) == 1
         assert '_id' not in record
         # insert id_
