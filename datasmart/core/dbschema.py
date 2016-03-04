@@ -42,6 +42,7 @@ class DBSchema(ABC):
 
         :param record: a Python dictionary of record
         :return: a Python dictionary ready to be inserted to DB.
+
         This is required for particular kinds of data types, such as date,
         which are in different formats for JSON schema and Mongo.
         """

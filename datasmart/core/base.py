@@ -1,6 +1,6 @@
 """
 
-core of adam, defines basic config pass mechanism.
+core of DataSMART, defines basic config pass mechanism.
 
 """
 from abc import ABC, abstractmethod
@@ -9,13 +9,21 @@ from . import util
 
 
 class Base(ABC):
-    """ base class for all classes in Adam, primarily dealing with config loading.
+    """base class for all classes in DataSMART, primarily dealing with config loading.
+
+    class variable `config_path` defines where to find the (JSON) config files for the class.
+
     """
-    config_path = ('core', 'Base')
+    config_path = ('core', 'base')
 
     @abstractmethod
     def __init__(self, config=None) -> None:
         """ abstract constructor. force subclassing.
+
+        users can pass in a config file in the constructor,
+        and the class will use that.
+        Otherwise, the class will find the config saved in locations defined by `config_path`, and postprocess it
+        with (overriden) :func:`Base.normalize_config`.
 
         :return: None
         """
@@ -28,10 +36,14 @@ class Base(ABC):
 
     @property
     def config_path(self) -> tuple:
+        """return the class variable config path, read only.
+
+        :return: the class variable config path, read only.
+        """
         return self.__class__.config_path
 
     def set_config(self, config_new: dict) -> None:
-        """ set new config, bypass postprocess.
+        """ set new config, bypass postprocessing function :func:`Base.normalize_config`.
 
         :param config_new: new config to be set.
         :return: None
@@ -40,6 +52,11 @@ class Base(ABC):
 
     @property
     def config(self) -> dict:
+        """returns a readonly version of the config (well you can definitely intentionally change config through methods
+        provided by the config itself)...
+
+        :return:
+        """
         return self.__config
 
     @staticmethod
@@ -58,7 +75,7 @@ class Base(ABC):
         Currently, there are only two fields.
 
         #. ``project_root``: the directory consisting the Python script being invoked.
-        #. ``root_package_spec``: how the system finds the datasmart package. Usually, it should be ``neon``
+        #. ``root_package_spec``: how the system finds the datasmart package. Usually, it should be ``datasmart``
             but this is for the scenario where whole package is sub-packaged.
 
         :return: the global config.

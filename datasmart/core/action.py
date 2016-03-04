@@ -10,6 +10,7 @@ from .db import DB
 from .dbschema import DBSchema
 from .filetransfer import FileTransfer
 
+
 class Action(Base):
     @abstractmethod
     def __init__(self, config=None):
@@ -306,6 +307,9 @@ class DBActionWithSchema(DBAction):
 
 
 class ManualDBActionWithSchema(DBActionWithSchema):
+    def __init__(self, config=None):
+        super().__init__(config)
+
     def validate_query_result(self, result) -> bool:
         return super().validate_query_result(result)
 
