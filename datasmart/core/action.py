@@ -83,6 +83,13 @@ class DBAction(Action):
     def result_ids(self):
         return self.__result_ids
 
+    def find_one_arbitrary(self):
+        """ check if a record exists in any arbitrary (db, collection).
+        base for constraints among
+        :return:
+        """
+        pass
+
     def insert_results(self, results):
         assert isinstance(results, list)
         self.__db_instance.connect()
@@ -103,13 +110,46 @@ class DBAction(Action):
         for x in filelist:
             assert (not os.path.isabs(x))
         # push file under {prefix}/self.table_path[0]/self.table_path[1]/id_.
-        filetransfer_instance.push(filelist=filelist, site=site, relative=relative,
+        # {prefix}/self.table_path[0]/self.table_path[1] must have been created beforehand, since rsync can only
+        # create one level of folders.
+        ret = filetransfer_instance.push(filelist=filelist, site=site, relative=relative,
                                    subdirs=subdirs, dest_append_prefix=list(self.table_path+(str(id_),)))
         self.__db_instance.disconnect()
+        return ret
+
+    @abstractmethod
+    def is_stale(self, record) -> bool:
+        """check if one record is no longer needed.
+
+        :return:
+        """
+        return True
+
+    def remove_one_result(self):
+        """
+        :return:
+        """
+
+        # first send ssh command to rm dir, and then get back the return value. make sure succeed.
+        # then remove the record id.
+        pass
+
+
+    def global_clean_up(self):
+        """
+        :return:
+        """
+
+        # first find all documents.
+        # then for loop
+        # then check if is stale
+        # then remove it if stale.
+
+        pass
 
     def clear_results(self):
         """ delete result ids from the database, in case you want to start over.
-
+        TODO: rewrite using remove_one_result
         :return:
         """
         assert isinstance(self.result_ids, list)
@@ -117,7 +157,7 @@ class DBAction(Action):
         collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
         for id_ in self.result_ids:
             # assert isinstance(id, ObjectId)  # not necessarily true.
-            collection_instance.delete_one({"_id": id_})
+            collection_instance.delete_one({"_id": id_}) # TODO: check if this would work if id_ is not in it.
             assert collection_instance.find_one({"_id": id_}) is None
         self.__db_instance.disconnect()
 
