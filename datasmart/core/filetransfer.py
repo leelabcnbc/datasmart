@@ -129,7 +129,7 @@ class FileTransfer(Base):
 
         return {'src': src_site, 'dest': dest_site, 'filelist': ret_filelist}
 
-    def push(self, filelist: list, site: dict = None, relative: bool = True, subdirs: list = None) -> dict:
+    def push(self, filelist: list, site: dict = None, relative: bool = True, subdirs: list = None, dest_append_prefix: list = None) -> dict:
         """ push files to the site.
 
 
@@ -138,6 +138,7 @@ class FileTransfer(Base):
         :param relative: copy full directory structure or just last part of each file path,
             like the same-named option in ``rsync``.
         :param subdirs: a list of path components under ``_config['local_data_dir']``. must exist.
+        :param dest_append_prefix: a list of path components to append to usual dest dir
         :return: throw Exception if anything wrong happens;
             otherwise a dict containing src, dest sites and filelist for dest.
         """
@@ -145,6 +146,8 @@ class FileTransfer(Base):
             site = self.config['default_site']
         if subdirs is None:
             subdirs = ['']
+        if dest_append_prefix is None:
+            dest_append_prefix = ['']
 
         savepath = util.joinpath_norm(self.config['local_data_dir'], self._reformat_subdirs(subdirs))
         # check that subdir exists.
@@ -156,7 +159,8 @@ class FileTransfer(Base):
         site = self._normalize_site(site)
         src_site = self._normalize_site({"path": savepath, "local": True})
         ret_filelist = self._transfer(src_site, site,
-                                      filelist, {"relative": relative})
+                                      filelist, {"relative": relative,
+                                                 "dest_append_prefix": dest_append_prefix})
 
         return {'src': src_site, 'dest': site, 'filelist': ret_filelist}
 
@@ -181,7 +185,14 @@ class FileTransfer(Base):
         rsync_ssh_arg = []
 
         rsync_src_spec, rsync_ssh_arg_src = self._get_rsync_site_spec(src, "/")
-        rsync_dest_spec, rsync_ssh_arg_dest = self._get_rsync_site_spec(dest)
+        if "dest_append_prefix" in options:
+            dest_append_prefix = options['dest_append_prefix']
+        else:
+            dest_append_prefix = ['']
+        dest_append_prefix = util.joinpath_norm(*dest_append_prefix)
+        # you must be relative path.
+        assert not (os.path.isabs(dest_append_prefix))
+        rsync_dest_spec, rsync_ssh_arg_dest = self._get_rsync_site_spec(dest, append_prefix=dest_append_prefix)
 
         assert (rsync_ssh_arg_src is None) or (rsync_ssh_arg_dest is None)
         if not (rsync_ssh_arg_src is None):
@@ -216,9 +227,12 @@ class FileTransfer(Base):
         for p in ret_filelist:
             assert (not os.path.isabs(p)) and p and (p != '.') and (p != '..')
 
+        # for remote case, we further append push prefix as well.
         if not dest['local']:
             dest_info = self.config['site_config'][dest['path']]
-            ret_filelist = [util.joinpath_norm(dest_info['push_prefix'], p) for p in ret_filelist]
+            ret_filelist = [util.joinpath_norm(dest_info['push_prefix'], dest_append_prefix, p) for p in ret_filelist]
+        else:
+            ret_filelist = [util.joinpath_norm(dest_append_prefix, p) for p in ret_filelist]
 
         for p in ret_filelist:
             assert p == os.path.normpath(p), "returned canonical filelist is not canonical!"
@@ -238,16 +252,18 @@ class FileTransfer(Base):
         # return site itself if there's no mapping for it.
         return site
 
-    def _get_rsync_site_spec(self, site: dict, prefix: str = None):
+    def _get_rsync_site_spec(self, site: dict, prefix: str = None, append_prefix=None):
+        if append_prefix is None:
+            append_prefix = ''
         if site['local']:
-            rsync_site_spec = site['path']
+            rsync_site_spec = util.joinpath_norm(site['path'], append_prefix)
             rsync_ssh_arg_site = None
         else:
             site_info = self.config['site_config'][site['path']]
             if prefix is None:
                 prefix = site_info['push_prefix']
             assert isinstance(prefix, str), "prefix must be string!"
-            rsync_site_spec = site_info['ssh_username'] + '@' + site['path'] + ':' + prefix
+            rsync_site_spec = site_info['ssh_username'] + '@' + site['path'] + ':' + util.joinpath_norm(prefix,append_prefix)
             rsync_ssh_arg_site = ['-e', "ssh -p {}".format(site_info['ssh_port'])]
 
         return rsync_site_spec, rsync_ssh_arg_site

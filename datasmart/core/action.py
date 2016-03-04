@@ -8,7 +8,7 @@ from . import util
 from .base import Base
 from .db import DB
 from .dbschema import DBSchema
-
+from .filetransfer import FileTransfer
 
 class Action(Base):
     @abstractmethod
@@ -92,6 +92,19 @@ class DBAction(Action):
             # assert isinstance(id, ObjectId)  # not necessarily true.
             assert (collection_instance.find_one({"_id": result['_id']}) is None)
             assert collection_instance.insert_one(result).acknowledged
+        self.__db_instance.disconnect()
+
+    def push_files(self, id_: ObjectId, filelist: list, site: dict = None, relative: bool = True, subdirs: list = None):
+        filetransfer_instance = FileTransfer()
+        self.__db_instance.connect()
+        collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
+        # make sure we don't push files after record is constructed.
+        assert collection_instance.find_one({"_id": id_}) is None, "only push files before inserting the record!"
+        for x in filelist:
+            assert (not os.path.isabs(x))
+        # push file under {prefix}/self.table_path[0]/self.table_path[1]/id_.
+        filetransfer_instance.push(filelist=filelist, site=site, relative=relative,
+                                   subdirs=subdirs, dest_append_prefix=list(self.table_path+(str(id_),)))
         self.__db_instance.disconnect()
 
     def clear_results(self):

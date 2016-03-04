@@ -12,9 +12,14 @@ import datasmart.core.util
 
 
 def check_local_push_fetch_result(fetch_flag, ret, filelist, local_data_dir, external_site, subdirs_this=None,
-                                  relative=True):
+                                  relative=True, dest_append_prefix=None):
     if subdirs_this is None:
         subdirs_this = []
+    if dest_append_prefix is None:
+        dest_append_prefix = ['']
+    dest_append_prefix = os.path.join(*dest_append_prefix)
+    # you must be relative path.
+    assert not (os.path.isabs(dest_append_prefix))
     # check return value.
     assert ret['dest']['local']
     assert ret['src']['local']
@@ -24,7 +29,7 @@ def check_local_push_fetch_result(fetch_flag, ret, filelist, local_data_dir, ext
                 *([local_data_dir] + subdirs_this + [file if relative else os.path.basename(file)]))
             src_file_actual = os.path.join(external_site, file)
         else:
-            dest_file_actual = os.path.join(external_site, (file if relative else os.path.basename(file)))
+            dest_file_actual = os.path.join(external_site, dest_append_prefix, (file if relative else os.path.basename(file)))
             src_file_actual = os.path.join(*([local_data_dir] + subdirs_this + [file]))
         assert os.path.exists(dest_file_actual)
         src_file = os.path.join(ret['src']['path'], filelist[idx])
@@ -60,18 +65,24 @@ def local_fetch(filetransfer, filelist, local_data_dir, external_site, subdirs_t
             shutil.rmtree(external_site)
 
 
-def local_push(filetransfer, filelist, local_data_dir, default_site_path, subdirs_this=None, relative=True):
+def local_push(filetransfer, filelist, local_data_dir, default_site_path, subdirs_this=None, relative=True,
+               dest_append_prefix = None):
+    if dest_append_prefix is None:
+        dest_append_prefix = ['']
     # test local fetch, so create external and local data dir
     try:
         os.mkdir(local_data_dir)
         os.mkdir(default_site_path)
+        if len(dest_append_prefix) > 1:
+            # ok, if dest_append_prefix has more than 2 levels, then create all intermediate directories except for last one.
+            os.makedirs(os.path.join(*([default_site_path]+dest_append_prefix[:-1])))
         # ok. Now time to create files in local data sub dirs.
         test_util.create_files_from_filelist(filelist, local_data_dir, subdirs_this)
 
         ret = filetransfer.push(filelist=filelist, relative=relative,
-                                subdirs=subdirs_this)
+                                subdirs=subdirs_this, dest_append_prefix=dest_append_prefix)
         check_local_push_fetch_result(False, ret, filelist, local_data_dir, default_site_path, subdirs_this,
-                                      relative=relative)
+                                      relative=relative, dest_append_prefix=dest_append_prefix)
     finally:
         if os.path.exists(local_data_dir):
             shutil.rmtree(local_data_dir)
@@ -90,6 +101,7 @@ def main_func():
         default_site_path = " ".join(test_util.fake.words())
         external_site = " ".join(test_util.fake.words())
         subdirs = test_util.fake.words()
+        dest_append_prefix = test_util.fake.words()
         config_this = deepcopy(config_default)
         config_this['local_data_dir'] = local_data_dir
         config_this['default_site']['local'] = True
@@ -101,7 +113,7 @@ def main_func():
             local_fetch(filetransfer_this, filelist, local_data_dir, external_site,
                         subdirs_this=subdirs_this, relative=relative)
             local_push(filetransfer_this, filelist, local_data_dir, default_site_path,
-                       subdirs_this=subdirs_this, relative=relative)
+                       subdirs_this=subdirs_this, relative=relative, dest_append_prefix=dest_append_prefix)
         print('pass {}'.format(i))
 
 
