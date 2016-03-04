@@ -15,13 +15,13 @@ Contents:
 
 
 Core Modules
-==================
+============
 .. inheritance-diagram:: datasmart.core.base datasmart.core.db datasmart.core.filetransfer datasmart.core.dbschema datasmart.core.action
 
 
 Actions
-==================
-.. inheritance-diagram:: datasmart.core.action datasmart.actions.cortex_exp
+=======
+.. inheritance-diagram:: actions.cortex_exp
 
 
 

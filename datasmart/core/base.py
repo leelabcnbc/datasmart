@@ -29,7 +29,8 @@ class Base(ABC):
         """
         assert self.config_path is not Base.config_path
         if config is None:
-            self.__config = self.normalize_config(util.load_config(self.config_path))
+            # calling the __class__ to hint people to override with @staticmethod
+            self.__config = self.__class__.normalize_config(util.load_config(self.config_path))
         else:
             #  we allow you to do anything.
             self.__config = config
@@ -37,6 +38,8 @@ class Base(ABC):
     @property
     def config_path(self) -> tuple:
         """return the class variable config path, read only.
+        I create this simply to make sure that self.config_path can't be set.
+        (well certainly you can set it if you really want).
 
         :return: the class variable config path, read only.
         """

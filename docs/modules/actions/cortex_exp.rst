@@ -2,5 +2,5 @@
 ``cortex_exp`` action
 =====================
 
-.. automodule:: datasmart.actions.cortex_exp
+.. automodule:: actions.cortex_exp
    :members:

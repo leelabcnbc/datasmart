@@ -13,8 +13,13 @@ Development
 Currently it is being developed by Yimeng Zhang in `Lee Lab`_.
 
 
+
+
 Structure
 =========
+
+DataSMART uses MongoDB to manage data,
+and users define **actions** to fetch data from the database, process the data, and push the data back to the DB.
 
 DataSMART has two main parts: core modules and user-defined actions.
 
@@ -40,7 +45,8 @@ There are four main core modules:
     Users have to define their own schemas for collections for different data processing needs.
 
 :mod:`datasmart.core.action`
-    Action modules
+    Action module, defining some common action classes that correspond to common operations in a science lab.
+    Users inherit from classes in this module to define their own action.
 
 
 User-defined Actions
