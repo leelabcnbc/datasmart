@@ -101,7 +101,7 @@ def remote_push_fetch(filetransfer, filelist, local_data_dir, local_cache_dir, s
         test_util.create_files_from_filelist(filelist, local_data_dir, subdirs_this=subdirs_push)
 
         # do the push, relative.
-        ret_push = filetransfer.push(filelist=filelist, relative=relative_push, subdirs=subdirs_push)
+        ret_push = filetransfer.push(filelist=filelist, relative=relative_push,subdirs=subdirs_push)
 
         # do the fetch.
         os.mkdir(local_cache_dir)
@@ -111,7 +111,7 @@ def remote_push_fetch(filetransfer, filelist, local_data_dir, local_cache_dir, s
         filetransfer.set_config(config_new)
         ret_fetch = filetransfer.fetch(
             filelist=ret_push['filelist'],
-            site=ret_push['dest'], relative=relative_fetch, subdirs=subdirs_fetch)
+            src_site=ret_push['dest'], relative=relative_fetch, subdirs=subdirs_fetch)
         check_remote_push_fetch_result(ret_push,
                                        ret_fetch,
                                        filelist, local_data_dir, local_cache_dir,

@@ -54,7 +54,7 @@ def local_fetch(filetransfer, filelist, local_data_dir, external_site, subdirs_t
         # ok. Now time to create files in external.
         test_util.create_files_from_filelist(filelist, external_site)
 
-        ret = filetransfer.fetch(filelist=filelist, site={'path': external_site, 'local': True}, relative=relative,
+        ret = filetransfer.fetch(filelist=filelist, src_site={'path': external_site, 'local': True}, relative=relative,
                                  subdirs=subdirs_this)
         check_local_push_fetch_result(True, ret, filelist, local_data_dir, external_site, subdirs_this,
                                       relative=relative)
@@ -79,8 +79,8 @@ def local_push(filetransfer, filelist, local_data_dir, default_site_path, subdir
         # ok. Now time to create files in local data sub dirs.
         test_util.create_files_from_filelist(filelist, local_data_dir, subdirs_this)
 
-        ret = filetransfer.push(filelist=filelist, relative=relative,
-                                subdirs=subdirs_this, dest_append_prefix=dest_append_prefix)
+        ret = filetransfer.push(filelist=filelist, relative=relative, subdirs=subdirs_this,
+                                dest_append_prefix=dest_append_prefix)
         check_local_push_fetch_result(False, ret, filelist, local_data_dir, default_site_path, subdirs_this,
                                       relative=relative, dest_append_prefix=dest_append_prefix)
     finally:

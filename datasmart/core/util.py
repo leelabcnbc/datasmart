@@ -6,6 +6,8 @@ import os
 import json
 import pkgutil
 from .. import global_config
+
+
 # removed for compatibility with readthedocs.
 # from typing import Union
 
@@ -28,6 +30,21 @@ def joinpath_norm(path, *paths):
     return os.path.normpath(os.path.join(path, *paths))
 
 
+def normalize_filelist_relative(filelist: list, prefix='') -> list:
+    """ normalize a list of relative file paths.
+
+    :param filelist: a list of relative file paths
+    :return: same file list, with paths normalized.
+    """
+    ret_filelist = [joinpath_norm(prefix,os.path.normpath(p)) for p in filelist]
+    for p in ret_filelist:
+        assert p.strip() == p, "no spaces around filename! this is good for your sanity."
+        assert not os.path.isabs(p), "file paths are all relative"
+        b = os.path.basename(p)
+        assert b and (b != '.') and (b != '..'), "no trival file name like empty, ., or ..!"
+    return ret_filelist
+
+
 def get_relative_path(filepath):
     if filepath[0] == os.sep:
         assert filepath[1] != os.sep, "file must start with '/'!"
@@ -35,7 +52,8 @@ def get_relative_path(filepath):
     else:
         return filepath
 
-#def load_config(module_name: tuple, filename='config.json', load_json=True) -> Union[dict,str]:
+
+# def load_config(module_name: tuple, filename='config.json', load_json=True) -> Union[dict,str]:
 def load_config(module_name: tuple, filename='config.json', load_json=True):
     """ load the config file for this module.
 

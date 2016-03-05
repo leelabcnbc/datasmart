@@ -24,7 +24,7 @@ class SchemaUtilPatterns:
     absPathPattern = '(^(/[^/]+)+$)|(^/$)'
     relativePathPattern = '^([^/]+)(/[^/]+)*$'
     absOrRelativePathPattern = '(' + absPathPattern + ')' + '|' + '(' + relativePathPattern + ')'
-
+    absOrRelativePathPatternOrEmpty = '(' + absPathPattern + ')' + '|' + '(' + relativePathPattern + ')' + '|(^$)'
 
 class GitRepoRef(jsl.Document):
     repo_url = jsl.StringField(format="uri", required=True)

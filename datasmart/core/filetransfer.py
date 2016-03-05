@@ -13,8 +13,6 @@ from . import schemautil
 import jsl
 
 
-
-
 class _SiteMappingSchema(jsl.Document):
     """ schema for site mapping. must be from remote to local
     """
@@ -29,22 +27,26 @@ class _RemoteSiteConfigSchema(jsl.Document):
     ssh_port = jsl.IntField(required=True, minimum=1, maximum=65535)
 
 
+_LOCAL_FETCH_OPTIONS = ["copy", "nocopy", "ask"]
+
+
 class FileTransferConfigSchema(jsl.Document):
     """ schema for FileTransfer's config. Notice that push and fetch mappings are separate.
     This can be useful when we have a read-only (thus safe) mapping for fetch, and
     don't use mapping at all when push
     """
     # the default location of pushing / fetching files. can be either relative or absolute.
-    local_data_dir = jsl.StringField(pattern=schemautil.SchemaUtilPatterns.absOrRelativePathPattern, required=True)
+    local_data_dir = jsl.StringField(pattern=schemautil.SchemaUtilPatterns.absOrRelativePathPatternOrEmpty,
+                                     required=True)
     site_mapping_push = jsl.ArrayField(items=jsl.DocumentField(_SiteMappingSchema), unique_items=True, required=True)
     site_mapping_fetch = jsl.ArrayField(items=jsl.DocumentField(_SiteMappingSchema), unique_items=True, required=True)
     remote_site_config = jsl.DictField(additional_properties=jsl.DocumentField(_RemoteSiteConfigSchema), required=True)
     default_site = jsl.OneOfField([jsl.DocumentField(schemautil.FileTransferSiteLocal),
-                                   jsl.DocumentField(schemautil.FileTransferSiteRemote)],required=True)
+                                   jsl.DocumentField(schemautil.FileTransferSiteRemote)], required=True)
     quiet = jsl.BooleanField(required=True)
 
     # this stuff provides a default on whether copy or not for local fetch.
-    local_fetch_option = jsl.StringField(enum=["copy", "nocopy", "ask"], required=True)
+    local_fetch_option = jsl.StringField(enum=_LOCAL_FETCH_OPTIONS, required=True)
 
 
 class FileTransfer(Base):
@@ -80,7 +82,8 @@ class FileTransfer(Base):
         # here site_path would be normalized.
         site_config_new = {}
         for site_path, site_conf in config['remote_site_config'].items():
-            site_path_new = FileTransfer._normalize_site({'local': False, 'path': site_path})['path']
+            # I construct a temp remote site simply to get a normed path.
+            site_path_new = FileTransfer._normalize_site({'local': False, 'path': site_path, 'prefix': '/'})['path']
             site_config_new[site_path_new] = site_conf
         config['remote_site_config'] = site_config_new
 
@@ -126,19 +129,27 @@ class FileTransfer(Base):
         :param site: a site as as defined in class level doc.
         :return: a normalized site.
         """
+        # check that if only has keys path local and prefix.
         site_new = site.copy()
         if site_new['local']:
+            # local site only has path.
+            assert sorted(site.keys()) == sorted(['path', 'local'])
             # this will do even when ``site_new['path']`` is absolute.
             # See the Python doc for ``os.path.join`` for why this is true.
             site_new['path'] = util.joinpath_norm(global_config['project_root'], site_new['path'])
             assert os.path.isabs(site_new['path'])
         else:
+            # remote site has prefix as well.
+            assert sorted(site.keys()) == sorted(['path', 'prefix', 'local'])
             # convert everything to lower case and remove surrounding white characters.
             site_new['path'] = site_new['path'].lower().strip()
+            site_new['prefix'] = os.path.normpath(site_new['prefix'])
+            assert os.path.isabs(site_new['prefix'])
 
         return site_new
 
-    def fetch(self, filelist: list, site: dict = None, relative: bool = False, subdirs: list = None) -> dict:
+    def fetch(self, filelist: list, src_site: dict = None, relative: bool = False, subdirs: list = None,
+              local_fetch_option=None, dryrun: bool=False) -> dict:
         """ fetch files from the site.
 
         it will fetch site/{prefix}/filelist{i} to
@@ -147,72 +158,108 @@ class FileTransfer(Base):
         {prefix} is defined in config['site_config'] for remote sites, and empty for local site.
 
         :param filelist: a list of files to be fetched from the site.
-        :param site: the site to fetch from. default is ``_config['default_site']``
+        :param src_site: the site to fetch from. default is ``_config['default_site']``
         :param relative: copy full directory structure or just last part of each file path,
             like the same-named option in ``rsync``.
         :param subdirs: a list of path components under ``_config['local_data_dir']``.fetch would create them if needed.
+        :param local_fetch_option: whether still fetch if it's local dir.
+        :param dryrun: whether only perform a dry-run, without actual copying. Default to false.
         :return: throw Exception if anything wrong happens;
             otherwise a dict containing src, dest sites and filelist for dest.
         """
 
-        if site is None:
-            site = self.config['default_site']
+        if src_site is None:
+            src_site = self.config['default_site']
         if subdirs is None:
             subdirs = ['']
-
+        if local_fetch_option is None:
+            local_fetch_option = self.config['local_fetch_option']
+        assert local_fetch_option in _LOCAL_FETCH_OPTIONS
+        # normalize the file list first.
+        filelist = util.normalize_filelist_relative(filelist)
         savepath = util.joinpath_norm(self.config['local_data_dir'], self._reformat_subdirs(subdirs))
         # make sure it exists.
         os.makedirs(savepath, exist_ok=True)
         # get actual src site
-        src_site = FileTransfer._normalize_site(self._site_mapping_fetch(site))
+        src_site = FileTransfer._normalize_site(src_site)
+        src_actual_site = self._site_mapping_fetch(src_site)
         # if src_site is local yet original passed site is remote (so there's mapping)
         # we need to make the filelist relative.
-        if src_site['local'] and (not site['local']):
-            filelist = [util.get_relative_path(p) for p in filelist]
 
-        dest_site = FileTransfer._normalize_site({"path": savepath, "local": True})
-        ret_filelist = self._transfer(src_site, dest_site,
-                                      filelist, {"relative": relative})
 
-        return {'src': src_site, 'dest': dest_site, 'filelist': ret_filelist}
+        copy_flag = True
 
-    def push(self, filelist: list, site: dict = None, relative: bool = True, subdirs: list = None,
-             dest_append_prefix: list = None) -> dict:
+        if src_actual_site['local'] and (not src_site['local']):
+            if local_fetch_option == 'ask':
+                a = input("do you want to copy the files? press enter to copy, enter anything then enter to not copy")
+                if a:
+                    copy_flag = False
+                else:
+                    copy_flag = True
+            elif local_fetch_option == 'copy':
+                copy_flag = True
+            elif local_fetch_option == 'nocopy':
+                copy_flag = False
+            else:
+                raise RuntimeError("can't be the case!")
+
+        if copy_flag:
+            dest_site = FileTransfer._normalize_site({"path": savepath, "local": True})
+            ret_filelist = self._transfer(src_actual_site, dest_site,
+                                          filelist, {"relative": relative, 'dryrun': dryrun})
+        else:
+            dest_site = src_actual_site
+            ret_filelist = filelist
+
+        return {'src': src_site, 'dest': dest_site, 'filelist': ret_filelist,
+                'src_actual': src_actual_site, 'dest_actual': dest_site}
+
+    def push(self, filelist: list, dest_site: dict = None, relative: bool = True, subdirs: list = None,
+             dest_append_prefix: list = None, dryrun: bool=False) -> dict:
         """ push files to the site.
 
         it will push to site/{prefix}/{dest_append_prefix}/(filelist{i} if relative else basename(filelist{i})) from
         'local_data_dir'/subdirs/filelist{i}
 
         :param filelist: a list of files to be pushed to the site.
-        :param site: the site to push to. default is ``_config['default_site']``
+        :param dest_site: the site to push to. default is ``_config['default_site']``
         :param relative: copy full directory structure or just last part of each file path,
             like the same-named option in ``rsync``.
         :param subdirs: a list of path components under ``_config['local_data_dir']``. must exist.
         :param dest_append_prefix: a list of path components to append to usual dest dir
+        :param dryrun: whether only perform a dry-run, without actual copying. Default to false.
         :return: throw Exception if anything wrong happens;
             otherwise a dict containing src, dest sites and filelist for dest.
         """
-        if site is None:
-            site = self.config['default_site']
+        if dest_site is None:
+            dest_site = self.config['default_site']
         if subdirs is None:
             subdirs = ['']
         if dest_append_prefix is None:
             dest_append_prefix = ['']
 
+        dest_append_prefix = util.joinpath_norm(*dest_append_prefix)
+        # append prefix must be relative path.
+        assert not (os.path.isabs(dest_append_prefix))
+        # normalize the filelist first.
+        filelist = util.normalize_filelist_relative(filelist)
         savepath = util.joinpath_norm(self.config['local_data_dir'], self._reformat_subdirs(subdirs))
         # check that subdir exists.
         assert os.path.exists(savepath)
 
         # the following is disabled, since site mapping is just a workaround for local processing.
         # get actual site
-        # site_ = _normalize_site(_site_mapping(site))
-        site = self._normalize_site(site)
+        dest_site = FileTransfer._normalize_site(dest_site)
+        dest_actual_site = self._site_mapping_push(dest_site)
         src_site = self._normalize_site({"path": savepath, "local": True})
-        ret_filelist = self._transfer(src_site, site,
+        ret_filelist = self._transfer(src_site, dest_site,
                                       filelist, {"relative": relative,
+                                                 "dryrun": dryrun,
                                                  "dest_append_prefix": dest_append_prefix})
-
-        return {'src': src_site, 'dest': site, 'filelist': ret_filelist}
+        dest_site['append_prefix'] = dest_append_prefix
+        dest_actual_site['append_prefix'] = dest_append_prefix
+        return {'src': src_site, 'dest': dest_site, 'filelist': ret_filelist,
+                'src_actual': src_site, 'dest_actual': dest_actual_site}
 
     def _transfer(self, src: dict, dest: dict, filelist: list, options: dict) -> list:
         """ core function for data transfer. Currently implemented in ``rsync``.
@@ -226,6 +273,11 @@ class FileTransfer(Base):
             Basically, ``dest['path'] + return value`` should give absolute path for files.
         """
 
+        if 'dest_append_prefix' in options:
+            dest_append_prefix = options['dest_append_prefix']
+        else:
+            dest_append_prefix = ''
+
         # one of them must be local.
         assert src['local'] or dest['local']
 
@@ -237,17 +289,12 @@ class FileTransfer(Base):
 
         # get the path of source and destination sites,  and get a ssh argument if necessary.
         # for source site, (remote) prefix will be '/' automatically.
+
         rsync_src_spec, rsync_ssh_arg_src = self._get_rsync_site_spec(src, "/")
 
         # provide an additional prefix for destination site (remote or local)
-        if "dest_append_prefix" in options:
-            dest_append_prefix = options['dest_append_prefix']
-        else:
-            dest_append_prefix = ['']
-        dest_append_prefix = util.joinpath_norm(*dest_append_prefix)
-        # append prefix must be relative path.
-        assert not (os.path.isabs(dest_append_prefix))
-        rsync_dest_spec, rsync_ssh_arg_dest = self._get_rsync_site_spec(dest, append_prefix=dest_append_prefix)
+        rsync_dest_spec, rsync_ssh_arg_dest = self._get_rsync_site_spec(dest,
+                                                                        append_prefix=dest_append_prefix)
 
         # if there's any non-None ssh arg returned, there must be exactly one.
         assert (rsync_ssh_arg_src is None) or (rsync_ssh_arg_dest is None)
@@ -280,27 +327,8 @@ class FileTransfer(Base):
         os.remove(rsync_filelist_path)
 
         # return the canonical filelist on the dest. This should be relative for local dest, and absolute for remote.
-        ret_filelist = [util.get_relative_path(p) for p in
-                        (rsync_filelist_value if options['relative'] else basename_list)]
-        for p in ret_filelist:
-            assert (not os.path.isabs(p)) and p and (p != '.') and (p != '..')
-
-        # for remote case, we further append push prefix as well.
-        if not dest['local']:
-            dest_info = self.config['site_config'][dest['path']]
-            prefix = dest_info['push_prefix']
-        else:
-            prefix = ''
-
-        ret_filelist = [util.joinpath_norm(prefix, dest_append_prefix, p) for p in ret_filelist]
-
-        for file in ret_filelist:
-            if dest['local']:
-                assert not os.path.isabs(file), "for local dest, file paths are all relative"
-            else:
-                assert os.path.isabs(file), "for remote dest, file paths are all absolute"
-            assert file == os.path.normpath(file), "returned canonical filelist is not canonical!"
-
+        ret_filelist = util.normalize_filelist_relative(rsync_filelist_value if options['relative'] else basename_list,
+                                                        prefix=dest_append_prefix)
         return ret_filelist
 
     def _site_mapping_push(self, site: dict) -> dict:
@@ -316,7 +344,6 @@ class FileTransfer(Base):
         # return site itself if there's no mapping for it.
         return site
 
-
     def _site_mapping_fetch(self, site: dict) -> dict:
         """ map site to the actual site used using ``_config['site_mapping_fetch']``
 
@@ -329,7 +356,6 @@ class FileTransfer(Base):
 
         # return site itself if there's no mapping for it.
         return site
-
 
     def _get_rsync_site_spec(self, site: dict, prefix: str = None, append_prefix: str = None) -> tuple:
         """get the rysnc arguments for a site.
@@ -369,14 +395,8 @@ class FileTransfer(Base):
         :return: a filelist to be written into a temp file for rsync to use as first element, and baselist as second.
         """
         # check that filenames don't contain weird characters, and get basename list.
-        rsync_filelist_value = [os.path.normpath(p) for p in filelist]
-        for p in rsync_filelist_value:
-            assert p.strip() == p, "no spaces around filename! this is good for your sanity."
+        rsync_filelist_value = util.normalize_filelist_relative(filelist)
         basename_list = [os.path.basename(p) for p in rsync_filelist_value]
-
-        # make sure that there's no trivial file being copied.
-        for b in basename_list:
-            assert b and (b != '.') and (b != '..'), "no trival file name like empty, ., or ..!"
 
         if src['local']:
             # check that all paths are relative.

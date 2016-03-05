@@ -127,8 +127,8 @@ class DBAction(Action):
         # push file under {prefix}/self.table_path[0]/self.table_path[1]/id_.
         # {prefix}/self.table_path[0]/self.table_path[1] must have been created beforehand, since rsync can only
         # create one level of folders.
-        ret = filetransfer_instance.push(filelist=filelist, site=site, relative=relative,
-                                   subdirs=subdirs, dest_append_prefix=list(self.table_path+(str(id_),)))
+        ret = filetransfer_instance.push(filelist=filelist, dest_site=site, relative=relative, subdirs=subdirs,
+                                         dest_append_prefix=list(self.table_path + (str(id_),)))
         self.__db_instance.disconnect()
         return ret
 
