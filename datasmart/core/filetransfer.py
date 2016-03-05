@@ -298,6 +298,7 @@ class FileTransfer(Base):
             rsync_ssh_arg_site = None
         else:
             # for remote site, fetch the push prefix
+            assert site['path'] in self.config['site_config'], "this remote site must have config!"
             site_info = self.config['site_config'][site['path']]
             if prefix is None:
                 prefix = site_info['push_prefix']

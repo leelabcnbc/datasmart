@@ -59,13 +59,29 @@ since the base action class is too general to use. Pre-defined subclasses cover 
 only need to fill in the blanks that are specific to their needs.
 
 
+Alternatives
+============
+
+There are many alternative systems for data management, including `DataJoint`_ and `G-Node`_.
+However, some design decisions in these systems are inconsistent with the needs of `Lee Lab`_.
 
 
-
-
-
-
+G-Node
+    While it's technologically much more advanced than DataSMART, with HDF5, JSON, and RESTful API
+    (see http://dx.doi.org/10.3389/fninf.2014.00032), etc.,
+    We feel that it requires too much effort to adapt the existing tools in the lab to this platform. Our lab is mostly
+    MATLAB-based, and changing the codebase and training our people would require too much.
+    Also, in practice, there are some stability problems with G-Node pre se.
+    For example, the Blackrock IO (for reading ``NEV`` and ``NSx`` files) for `Neo`_, which is used to represent
+    data in G-Node, is not mature enough and probably buggy
+    (see https://groups.google.com/forum/#!msg/neuralensemble/kUlwtYAoXAk/4gL2dHjvAgAJ the IO interface in the 0.3.3
+    release of Neo is broken, and although there's a new one in the master branch, I don't want to use a dev version),
+    compared to BlackRock's official MATLAB package `NPMK`_.
 
 
 
 .. _Lee Lab: http://leelab.cnbc.cmu.edu
+.. _DataJoint: http://datajoint.github.io
+.. _G-Node: http://www.g-node.org
+.. _Neo: http://neuralensemble.org/neo/
+.. _NPMK: https://github.com/BlackrockMicrosystems/NPMK

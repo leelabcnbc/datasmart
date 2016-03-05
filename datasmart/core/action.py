@@ -18,22 +18,35 @@ class Action(Base):
 
     @abstractmethod
     def prepare(self) -> None:
+        """ the first phase of an action.
+
+        :return: None should make sure it runs without throw exception if and only if is_prepared returns True.
+        """
         pass
 
     @abstractmethod
     def perform(self) -> None:
-        """ the main method actually doing things.
+        """ the second phase of an action.
+        the main method actually doing things.
+
+        :return: None. should make sure it runs without throw exception if and only if is_finished returns True.
+        """
+        pass
+
+    @abstractmethod
+    def is_prepared(self) -> bool:
+        """ check if first phase is done.
 
         :return:
         """
         pass
 
     @abstractmethod
-    def is_prepared(self) -> bool:
-        pass
-
-    @abstractmethod
     def is_finished(self) -> bool:
+        """ check if second phase is done.
+
+        :return:
+        """
         pass
 
     def run(self):
@@ -84,12 +97,13 @@ class DBAction(Action):
     def result_ids(self):
         return self.__result_ids
 
-    def find_one_arbitrary(self):
+    def find_one_arbitrary(self, id_, path):
         """ check if a record exists in any arbitrary (db, collection).
-        base for constraints among
+        base for constraints among collections.
         :return:
         """
         pass
+
 
     def insert_results(self, results):
         assert isinstance(results, list)
@@ -119,22 +133,56 @@ class DBAction(Action):
         return ret
 
     @abstractmethod
-    def is_stale(self, record) -> bool:
+    def is_stale(self, record, db_instance) -> bool:
         """check if one record is no longer needed.
+
+        with db_instance, you can do all kinds of check. such as checking whether some of your
+        references still exist in other parts of the DB.
 
         :return:
         """
         return True
 
-    def remove_one_result(self):
+    @abstractmethod
+    def remove_files_for_one_record(self, record):
+        """ this method defines how to remove files associated with a record, given the record itself.
+
+        :param record: the record whose associated files is to be removed.
+        :return: None if everything works fine. Otherwise, throw some exception.
         """
+        assert self.remove_files_for_one_record is not DBAction.remove_files_for_one_record, "you must override del!"
+
+    def remove_one_record(self, collection_instance, record):
+        """  internal method to completely remove a record.
+
+        :param collection_instance:
+        :param id_:
+        :return:
+        """
+        assert collection_instance.find_one({"_id": record['id_']}) is not None
+        self.remove_files_for_one_record(record)
+        collection_instance.delete_one({"_id": record['id_']})  # TODO: check if this would work if id_ is not in it.
+        assert collection_instance.find_one({"_id": record['id_']}) is None
+
+    def remove_files(self, id_, site_list):
+        """ remove the files associated with one ``id_`` in this collection, over many sites.
+
+        By design, I assumed that you upload your files in the form of
+        ``prefix/table_path[0]/table_path[1]/id_``.
+
+        if prefix is not supplied, then I assume that you want to delete these files with the standard prefix
+        defined in db.config.
+
+        So I will simply check
+
+        :param id_: _id field of the record.
+        :param site_list: which site's file to remove?
         :return:
         """
 
         # first send ssh command to rm dir, and then get back the return value. make sure succeed.
         # then remove the record id.
         pass
-
 
     def global_clean_up(self):
         """
@@ -145,8 +193,15 @@ class DBAction(Action):
         # then for loop
         # then check if is stale
         # then remove it if stale.
-
-        pass
+        self.__db_instance.connect()
+        collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
+        for record in collection_instance.find():
+            if self.is_stale(record, self.__db_instance):
+                print("the following record will be cleaned up:")
+                print(record)
+                input("press enter to confirm... otherwise, press ctrl+c to stop")
+                self.remove_one_record(collection_instance, record)
+        self.__db_instance.disconnect()
 
     def clear_results(self):
         """ delete result ids from the database, in case you want to start over.
@@ -157,9 +212,9 @@ class DBAction(Action):
         self.__db_instance.connect()
         collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
         for id_ in self.result_ids:
-            # assert isinstance(id, ObjectId)  # not necessarily true.
-            collection_instance.delete_one({"_id": id_}) # TODO: check if this would work if id_ is not in it.
-            assert collection_instance.find_one({"_id": id_}) is None
+            record = collection_instance.find_one({"_id": id_})
+            if record is not None:
+                self.remove_one_record(collection_instance, record)
         self.__db_instance.disconnect()
 
     def is_inserted_one(self, id_):
@@ -191,7 +246,7 @@ class DBAction(Action):
 
     def is_prepared(self) -> bool:
         """ check if the result is already there, and if there is, then put it in self._query_result and return True
-        otherwise False.
+        otherwise False. if there are any exceptions, then certainly it also means bad.
 
         :return:
         """
