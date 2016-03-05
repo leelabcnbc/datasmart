@@ -36,4 +36,5 @@ hard drive. This kind of mapping exists for at least two reasons.
 
 
 .. _NAS: https://en.wikipedia.org/wiki/Network-attached_storage
-.. [#f1] Thanks PC Zhou (zhoupc.github.io) for valuable discussion on this matter.
+.. [#f1] Thanks `PC Zhou <http://zhoupc.github.io>`_ for valuable discussion on this matter. It makes me learn to place
+    user requirement in the first place, instead of computer science geeks' fancy ideology.
