@@ -186,7 +186,6 @@ class FileTransfer(Base):
         # if src_site is local yet original passed site is remote (so there's mapping)
         # we need to make the filelist relative.
 
-
         copy_flag = True
 
         if src_actual_site['local'] and (not src_site['local']):
@@ -278,6 +277,8 @@ class FileTransfer(Base):
         else:
             dest_append_prefix = ''
 
+        dryrun = options['dryrun']
+
         # one of them must be local.
         assert src['local'] or dest['local']
 
@@ -288,14 +289,9 @@ class FileTransfer(Base):
         rsync_ssh_arg = []
 
         # get the path of source and destination sites,  and get a ssh argument if necessary.
-        # for source site, (remote) prefix will be '/' automatically.
-
-        rsync_src_spec, rsync_ssh_arg_src = self._get_rsync_site_spec(src, "/")
-
+        rsync_src_spec, rsync_ssh_arg_src = self._get_rsync_site_spec(src)
         # provide an additional prefix for destination site (remote or local)
-        rsync_dest_spec, rsync_ssh_arg_dest = self._get_rsync_site_spec(dest,
-                                                                        append_prefix=dest_append_prefix)
-
+        rsync_dest_spec, rsync_ssh_arg_dest = self._get_rsync_site_spec(dest, append_prefix=dest_append_prefix)
         # if there's any non-None ssh arg returned, there must be exactly one.
         assert (rsync_ssh_arg_src is None) or (rsync_ssh_arg_dest is None)
         if not (rsync_ssh_arg_src is None):
@@ -304,27 +300,29 @@ class FileTransfer(Base):
             rsync_ssh_arg = rsync_ssh_arg_dest
 
         # create a filelist for rsync's file-from option.
-        rsync_filelist_value, basename_list = self._get_rsync_filelist(filelist, src, options)
+        rsync_filelist_value, basename_list = FileTransfer._get_rsync_filelist(filelist, options)
 
-        # create temp file for rsync_filelist_value.
-        rsync_filelist_handle = tempfile.NamedTemporaryFile(mode='wt', delete=False)
-        rsync_filelist_path = rsync_filelist_handle.name
-        rsync_filelist_handle.writelines([p + '\n' for p in rsync_filelist_value])
-        rsync_filelist_handle.close()
+        # run the actual rsync if not dryrun.
+        if not dryrun:
+            # create temp file for rsync_filelist_value.
+            rsync_filelist_handle = tempfile.NamedTemporaryFile(mode='wt', delete=False)
+            rsync_filelist_path = rsync_filelist_handle.name
+            rsync_filelist_handle.writelines([p + '\n' for p in rsync_filelist_value])
+            rsync_filelist_handle.close()
 
-        rsync_filelist_arg = "--files-from={}".format(rsync_filelist_path)
+            rsync_filelist_arg = "--files-from={}".format(rsync_filelist_path)
 
-        # get the full rsync command.
-        rsync_command = ["rsync", "-azvP",
-                         rsync_relative_arg] + rsync_ssh_arg + [rsync_filelist_arg, rsync_src_spec, rsync_dest_spec]
+            # get the full rsync command.
+            rsync_command = ["rsync", "-azvP",
+                             rsync_relative_arg] + rsync_ssh_arg + [rsync_filelist_arg, rsync_src_spec, rsync_dest_spec]
 
-        # print the rsync command.
-        print(" ".join(rsync_command))
-        stdout_arg = subprocess.PIPE if self.config['quiet'] else None
-        subprocess.run(rsync_command, check=True, stdout=stdout_arg)  # if not return 0, if fails.
+            # print the rsync command.
+            print(" ".join(rsync_command))
+            stdout_arg = subprocess.PIPE if self.config['quiet'] else None
+            subprocess.run(rsync_command, check=True, stdout=stdout_arg)  # if not return 0, if fails.
 
-        # delete the filelist
-        os.remove(rsync_filelist_path)
+            # delete the filelist
+            os.remove(rsync_filelist_path)
 
         # return the canonical filelist on the dest. This should be relative for local dest, and absolute for remote.
         ret_filelist = util.normalize_filelist_relative(rsync_filelist_value if options['relative'] else basename_list,
@@ -357,60 +355,46 @@ class FileTransfer(Base):
         # return site itself if there's no mapping for it.
         return site
 
-    def _get_rsync_site_spec(self, site: dict, prefix: str = None, append_prefix: str = None) -> tuple:
+    def _get_rsync_site_spec(self, site: dict, append_prefix: str = None) -> tuple:
         """get the rysnc arguments for a site.
 
         :param site: a site defined in class-level doc.
-        :param prefix: the directory prefix after the site, before filelist.
         :param append_prefix: additional prefix. this is primarily for dest site.
         :return:
         """
         if append_prefix is None:
             append_prefix = ''
+
         if site['local']:
             # for local site, we don't need additional argument for ssh, only append prefix if needed.
-            # also notice that prefix is ignored, since that's for remote only.
-            # TODO. refactor the relationship between prefix and append_prefix.
             rsync_site_spec = util.joinpath_norm(site['path'], append_prefix)
             rsync_ssh_arg_site = None
         else:
             # for remote site, fetch the push prefix
             assert site['path'] in self.config['site_config'], "this remote site must have config!"
             site_info = self.config['site_config'][site['path']]
-            if prefix is None:
-                prefix = site_info['push_prefix']
-            assert isinstance(prefix, str), "prefix must be string!"
+            prefix = site['prefix']
             rsync_site_spec = site_info['ssh_username'] + '@' + site['path'] + ':' + util.joinpath_norm(prefix,
                                                                                                         append_prefix)
             rsync_ssh_arg_site = ['-e', "ssh -p {}".format(site_info['ssh_port'])]
 
         return rsync_site_spec, rsync_ssh_arg_site
 
-    def _get_rsync_filelist(self, filelist: list, src: dict, options: dict) -> tuple:
+    @staticmethod
+    def _get_rsync_filelist(filelist: list, options: dict) -> tuple:
         """ get the filelist for rsync's files-from option.
 
         :param filelist: original file list.
-        :param src: src site
         :param options: options passed into transfer.
         :return: a filelist to be written into a temp file for rsync to use as first element, and baselist as second.
         """
         # check that filenames don't contain weird characters, and get basename list.
         rsync_filelist_value = util.normalize_filelist_relative(filelist)
         basename_list = [os.path.basename(p) for p in rsync_filelist_value]
-
-        if src['local']:
-            # check that all paths are relative.
-            for p in rsync_filelist_value:
-                assert (not os.path.isabs(p)), "local file names must be relative"
-        else:
-            # check that all paths are absolute, since it's from remote.
-            for p in rsync_filelist_value:
-                assert os.path.isabs(p), "remote file names must be absolute"
-
         # check for duplicate
         # for relative, no duplicate full path should exist
         # for non-relative, no duplicate basename should exist.
-        self._check_duplicate(rsync_filelist_value if options['relative'] else basename_list)
+        FileTransfer._check_duplicate(rsync_filelist_value if options['relative'] else basename_list)
 
         return rsync_filelist_value, basename_list
 
