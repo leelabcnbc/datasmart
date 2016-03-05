@@ -9,18 +9,46 @@ import tempfile
 from datasmart import global_config
 from .base import Base
 from . import util
+from . import schemautil
+import jsl
+
+
+
+
+class _SiteMappingSchema(jsl.Document):
+    """ schema for site mapping. must be from remote to local
+    """
+    _from = jsl.DocumentField(schemautil.FileTransferSiteRemote, name='from', required=True)
+    _to = jsl.DocumentField(schemautil.FileTransferSiteLocal, name='to', required=True)
+
+
+class _RemoteSiteConfigSchema(jsl.Document):
+    """ schema for remote site mapping. should contain ssh username and ssh port.
+    """
+    ssh_username = jsl.StringField(required=True)
+    ssh_port = jsl.IntField(required=True, minimum=1, maximum=65535)
+
+
+class FileTransferConfigSchema(jsl.Document):
+    """ schema for FileTransfer's config. Notice that push and fetch mappings are separate.
+    This can be useful when we have a read-only (thus safe) mapping for fetch, and
+    don't use mapping at all when push
+    """
+    # the default location of pushing / fetching files. can be either relative or absolute.
+    local_data_dir = jsl.StringField(pattern=schemautil.SchemaUtilPatterns.absOrRelativePathPattern, required=True)
+    site_mapping_push = jsl.ArrayField(items=jsl.DocumentField(_SiteMappingSchema), unique_items=True, required=True)
+    site_mapping_fetch = jsl.ArrayField(items=jsl.DocumentField(_SiteMappingSchema), unique_items=True, required=True)
+    remote_site_config = jsl.DictField(additional_properties=jsl.DocumentField(_RemoteSiteConfigSchema), required=True)
+    default_site = jsl.OneOfField([jsl.DocumentField(schemautil.FileTransferSiteLocal),
+                                   jsl.DocumentField(schemautil.FileTransferSiteRemote)],required=True)
+    quiet = jsl.BooleanField(required=True)
+
+    # this stuff provides a default on whether copy or not for local fetch.
+    local_fetch_option = jsl.StringField(enum=["copy", "nocopy", "ask"], required=True)
 
 
 class FileTransfer(Base):
-    """
-    A **site** is a destination or source of files, and it can be either remote or local. Examples are below.
-
-    .. code-block:: python
-
-        {"path": "raptor.cnbc.cmu.edu", "local": False}
-        {"path": "/Users/yimengzh/datasmart_data", "local": True}
-
-    The first is a remote site, and the second is a local site.
+    """ class for file transfer.
 
     Currently, file transfer is handled via ``rsync``.
     """
@@ -38,33 +66,29 @@ class FileTransfer(Base):
         :return: validated and normalized config dictionary.
         """
 
+        # let's validate first...
+        assert schemautil.validate(FileTransferConfigSchema.get_schema(), config)
+
         # normalize local save
         config['local_data_dir'] = util.joinpath_norm(global_config['project_root'], config['local_data_dir'])
 
-        # validate & normalize path in mapping.
-        site_mapping_new = []
-        for map_pair in config['site_mapping']:
-            assert (not map_pair['from']['local']) and (map_pair['to']['local'])  # must be remote to local map
-            # I normalize ``from`` as well, since later we may have a way to normalize remote site.
-            site_mapping_new.append(
-                {'from': FileTransfer._normalize_site(map_pair['from']),
-                 'to': FileTransfer._normalize_site(map_pair['to'])})
-        config['site_mapping'] = site_mapping_new
+        # normalize site mapping.
+        config['site_mapping_push'] = FileTransfer.normalize_site_mapping(config['site_mapping_push'])
+        config['site_mapping_fetch'] = FileTransfer.normalize_site_mapping(config['site_mapping_fetch'])
 
-        # normalize (remote) site config.
-        # here site_path would be normalized as well.
+        # normalize remote site config.
+        # here site_path would be normalized.
         site_config_new = {}
-        for site_path, site_conf in config['site_config'].items():
-            site_conf_new = site_conf.copy()
-            site_conf_new['push_prefix'] = os.path.normpath(site_conf_new['push_prefix'])
-            assert os.path.isabs(site_conf_new['push_prefix'])
+        for site_path, site_conf in config['remote_site_config'].items():
             site_path_new = FileTransfer._normalize_site({'local': False, 'path': site_path})['path']
-            site_config_new[site_path_new] = site_conf_new
-        config['site_config'] = site_config_new
+            site_config_new[site_path_new] = site_conf
+        config['remote_site_config'] = site_config_new
 
         # normalize default site.
         config['default_site'] = FileTransfer._normalize_site(config['default_site'])
 
+        # assert again.
+        assert schemautil.validate(FileTransferConfigSchema.get_schema(), config)
         return config
 
     def _reformat_subdirs(self, subdirs: list) -> str:
@@ -81,6 +105,18 @@ class FileTransfer(Base):
             util.joinpath_norm(self.config['local_data_dir'], savepath_subdirs), self.config['local_data_dir']
         ]) == self.config['local_data_dir']
         return savepath_subdirs
+
+    @staticmethod
+    def normalize_site_mapping(site_mapping_old):
+        # validate & normalize path in mapping.
+        site_mapping_new = []
+        for map_pair in site_mapping_old:
+            assert (not map_pair['from']['local']) and (map_pair['to']['local'])  # must be remote to local map
+            # I normalize ``from`` as well, since later we may have a way to normalize remote site.
+            site_mapping_new.append(
+                {'from': FileTransfer._normalize_site(map_pair['from']),
+                 'to': FileTransfer._normalize_site(map_pair['to'])})
+        return site_mapping_new
 
     @staticmethod
     def _normalize_site(site: dict) -> dict:
@@ -128,13 +164,13 @@ class FileTransfer(Base):
         # make sure it exists.
         os.makedirs(savepath, exist_ok=True)
         # get actual src site
-        src_site = self._normalize_site(self._site_mapping(site))
+        src_site = FileTransfer._normalize_site(self._site_mapping_fetch(site))
         # if src_site is local yet original passed site is remote (so there's mapping)
         # we need to make the filelist relative.
         if src_site['local'] and (not site['local']):
             filelist = [util.get_relative_path(p) for p in filelist]
 
-        dest_site = self._normalize_site({"path": savepath, "local": True})
+        dest_site = FileTransfer._normalize_site({"path": savepath, "local": True})
         ret_filelist = self._transfer(src_site, dest_site,
                                       filelist, {"relative": relative})
 
@@ -267,18 +303,33 @@ class FileTransfer(Base):
 
         return ret_filelist
 
-    def _site_mapping(self, site: dict) -> dict:
-        """ map site to the actual site used using ``_config['site_mapping']``
+    def _site_mapping_push(self, site: dict) -> dict:
+        """ map site to the actual site used using ``_config['site_mapping_push']``
 
         :param site: the site to be mapped
         :return: the actual site
         """
-        for map_pair_ in self.config['site_mapping']:
+        for map_pair_ in self.config['site_mapping_push']:
             if site == map_pair_['from']:
                 return map_pair_['to']
 
         # return site itself if there's no mapping for it.
         return site
+
+
+    def _site_mapping_fetch(self, site: dict) -> dict:
+        """ map site to the actual site used using ``_config['site_mapping_fetch']``
+
+        :param site: the site to be mapped
+        :return: the actual site
+        """
+        for map_pair_ in self.config['site_mapping_fetch']:
+            if site == map_pair_['from']:
+                return map_pair_['to']
+
+        # return site itself if there's no mapping for it.
+        return site
+
 
     def _get_rsync_site_spec(self, site: dict, prefix: str = None, append_prefix: str = None) -> tuple:
         """get the rysnc arguments for a site.
