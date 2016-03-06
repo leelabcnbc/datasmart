@@ -4,9 +4,11 @@ from faker import Factory
 
 fake = Factory.create()
 
-
 def gen_filename():
-    return fake.sentence() + fake.file_extension()
+    if random.random() < 0:
+        return fake.sentence() + fake.file_extension()
+    else:
+        return ''.join(random.choice("""!"#:$%&'()*+,-;<=>?@[\]^_`{|}~""") for _ in range(10))
 
 
 def gen_filenames(n=100):
@@ -43,6 +45,7 @@ def create_files_from_filelist(filelist, local_data_dir, subdirs_this=None):
         assert not os.path.exists(file_path)
         with open(file_path, 'w') as f:
             f.writelines(fake.sentences())
+
 
 if __name__ == '__main__':
     print(gen_filelist(10))

@@ -37,6 +37,8 @@ def normalize_filelist_relative(filelist: list, prefix='') -> list:
     :param prefix: an optional preffix
     :return: same file list, with paths normalized.
     """
+    assert len(filelist)>0
+
     ret_filelist = [joinpath_norm(prefix, os.path.normpath(p)) for p in filelist]
     for p in ret_filelist:
         assert os.path.normpath(p) == p, "should be already normalized!"

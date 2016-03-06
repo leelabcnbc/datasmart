@@ -11,6 +11,7 @@ from .base import Base
 from . import util
 from . import schemautil
 import jsl
+import shlex
 
 
 class _SiteMappingSchema(jsl.Document):
@@ -320,6 +321,7 @@ class FileTransfer(Base):
             rsync_filelist_handle.close()
 
             rsync_filelist_arg = "--files-from={}".format(rsync_filelist_path)
+            subprocess.run(["cat", rsync_filelist_path])
 
             # get the full rsync command.
             rsync_command = ["rsync", "-azvP",
@@ -378,15 +380,18 @@ class FileTransfer(Base):
 
         if site['local']:
             # for local site, we don't need additional argument for ssh, only append prefix if needed.
-            rsync_site_spec = util.joinpath_norm(site['path'], append_prefix)
+            rsync_site_spec = util.joinpath_norm(site['path'], append_prefix) + os.path.sep
+            # sep is important to force it being a directory. This is useful when filelist only has one file.
             rsync_ssh_arg_site = None
         else:
             # for remote site, fetch the push prefix
-            assert site['path'] in self.config['site_config'], "this remote site must have config!"
-            site_info = self.config['site_config'][site['path']]
+            assert site['path'] in self.config['remote_site_config'], "this remote site must have config!"
+            site_info = self.config['remote_site_config'][site['path']]
             prefix = site['prefix']
-            rsync_site_spec = site_info['ssh_username'] + '@' + site['path'] + ':' + util.joinpath_norm(prefix,
-                                                                                                        append_prefix)
+            rsync_site_spec = site_info['ssh_username'] + '@' + site['path'] + ':' + shlex.quote(
+                util.joinpath_norm(prefix, append_prefix + os.path.sep))
+            # must quote since this string after ``:`` is parsed by remote shell. Double quote it to remove all wildcard
+            # expansion... should test wild card to see if it works...
             rsync_ssh_arg_site = ['-e', "ssh -p {}".format(site_info['ssh_port'])]
 
         return rsync_site_spec, rsync_ssh_arg_site
