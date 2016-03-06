@@ -23,6 +23,17 @@ def check_local_push_fetch_result(fetch_flag, ret, filelist, local_data_dir, ext
     # check return value.
     assert ret['dest']['local']
     assert ret['src']['local']
+    assert ret['src'] == ret['src_actual']
+    assert ret['dest'] == ret['dest_actual']
+
+    assert sorted(ret['src'].keys()) == sorted(['path', 'local'])
+
+    if not fetch_flag:  # for push, append_prefix would be generated
+        assert ret['dest']['append_prefix'] == dest_append_prefix
+        assert sorted(ret['dest'].keys()) == sorted(['path', 'local', 'append_prefix'])
+    else:
+        assert sorted(ret['dest'].keys()) == sorted(['path', 'local'])
+
     for idx, file in enumerate(filelist):
         if fetch_flag:
             dest_file_actual = os.path.join(
@@ -58,6 +69,10 @@ def local_fetch(filetransfer, filelist, local_data_dir, external_site, subdirs_t
                                  subdirs=subdirs_this)
         check_local_push_fetch_result(True, ret, filelist, local_data_dir, external_site, subdirs_this,
                                       relative=relative)
+        # check dry run.
+        ret2 = filetransfer.fetch(filelist=filelist, src_site={'path': external_site, 'local': True}, relative=relative,
+                                 subdirs=subdirs_this, dryrun=True)
+        assert ret==ret2
     finally:
         if os.path.exists(local_data_dir):
             shutil.rmtree(local_data_dir)
@@ -83,6 +98,10 @@ def local_push(filetransfer, filelist, local_data_dir, default_site_path, subdir
                                 dest_append_prefix=dest_append_prefix)
         check_local_push_fetch_result(False, ret, filelist, local_data_dir, default_site_path, subdirs_this,
                                       relative=relative, dest_append_prefix=dest_append_prefix)
+        # check dry run.
+        ret2 = filetransfer.push(filelist=filelist, relative=relative, subdirs=subdirs_this,
+                                dest_append_prefix=dest_append_prefix, dryrun=True)
+        assert ret==ret2
     finally:
         if os.path.exists(local_data_dir):
             shutil.rmtree(local_data_dir)

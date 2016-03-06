@@ -31,26 +31,20 @@ def joinpath_norm(path, *paths):
 
 
 def normalize_filelist_relative(filelist: list, prefix='') -> list:
-    """ normalize a list of relative file paths.
+    """ normalize a list of relative file paths, and check that paths are well-behaved.
 
     :param filelist: a list of relative file paths
+    :param prefix: an optional preffix
     :return: same file list, with paths normalized.
     """
-    ret_filelist = [joinpath_norm(prefix,os.path.normpath(p)) for p in filelist]
+    ret_filelist = [joinpath_norm(prefix, os.path.normpath(p)) for p in filelist]
     for p in ret_filelist:
+        assert os.path.normpath(p) == p, "should be already normalized!"
         assert p.strip() == p, "no spaces around filename! this is good for your sanity."
         assert not os.path.isabs(p), "file paths are all relative"
         b = os.path.basename(p)
         assert b and (b != '.') and (b != '..'), "no trival file name like empty, ., or ..!"
     return ret_filelist
-
-
-def get_relative_path(filepath):
-    if filepath[0] == os.sep:
-        assert filepath[1] != os.sep, "file must start with '/'!"
-        return filepath[1:]
-    else:
-        return filepath
 
 
 # def load_config(module_name: tuple, filename='config.json', load_json=True) -> Union[dict,str]:

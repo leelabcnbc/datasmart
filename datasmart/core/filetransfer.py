@@ -16,6 +16,8 @@ import jsl
 class _SiteMappingSchema(jsl.Document):
     """ schema for site mapping. must be from remote to local
     """
+
+    # use ``name`` argument of DocumentField to overcome keyword restriction in Python.
     _from = jsl.DocumentField(schemautil.FileTransferSiteRemote, name='from', required=True)
     _to = jsl.DocumentField(schemautil.FileTransferSiteLocal, name='to', required=True)
 
@@ -24,9 +26,11 @@ class _RemoteSiteConfigSchema(jsl.Document):
     """ schema for remote site mapping. should contain ssh username and ssh port.
     """
     ssh_username = jsl.StringField(required=True)
+    # valid port is 1-65535, 0 usually meaning random port.
     ssh_port = jsl.IntField(required=True, minimum=1, maximum=65535)
 
 
+# what options are available for ``local_fetch_option``.
 _LOCAL_FETCH_OPTIONS = ["copy", "nocopy", "ask"]
 
 
@@ -72,6 +76,8 @@ class FileTransfer(Base):
         assert schemautil.validate(FileTransferConfigSchema.get_schema(), config)
 
         # normalize local save
+        # this works even when config['local_data_dir'] is absolute. see the official doc on
+        # os.path.join to see why.
         config['local_data_dir'] = util.joinpath_norm(global_config['project_root'], config['local_data_dir'])
 
         # normalize site mapping.
@@ -149,7 +155,7 @@ class FileTransfer(Base):
         return site_new
 
     def fetch(self, filelist: list, src_site: dict = None, relative: bool = False, subdirs: list = None,
-              local_fetch_option=None, dryrun: bool=False) -> dict:
+              local_fetch_option=None, dryrun: bool = False) -> dict:
         """ fetch files from the site.
 
         it will fetch site/{prefix}/filelist{i} to
@@ -165,7 +171,8 @@ class FileTransfer(Base):
         :param local_fetch_option: whether still fetch if it's local dir.
         :param dryrun: whether only perform a dry-run, without actual copying. Default to false.
         :return: throw Exception if anything wrong happens;
-            otherwise a dict containing src, dest sites and filelist for dest.
+            otherwise a dict containing src, dest sites, filelist, and actual src and dest sites for dest.
+            For fetch, actual src can be different from src due to mapping, and dest and actual dest are the same.
         """
 
         if src_site is None:
@@ -208,13 +215,14 @@ class FileTransfer(Base):
                                           filelist, {"relative": relative, 'dryrun': dryrun})
         else:
             dest_site = src_actual_site
+            # use actual filelist, since there's no fetch.
             ret_filelist = filelist
 
         return {'src': src_site, 'dest': dest_site, 'filelist': ret_filelist,
                 'src_actual': src_actual_site, 'dest_actual': dest_site}
 
     def push(self, filelist: list, dest_site: dict = None, relative: bool = True, subdirs: list = None,
-             dest_append_prefix: list = None, dryrun: bool=False) -> dict:
+             dest_append_prefix: list = None, dryrun: bool = False) -> dict:
         """ push files to the site.
 
         it will push to site/{prefix}/{dest_append_prefix}/(filelist{i} if relative else basename(filelist{i})) from
@@ -228,7 +236,8 @@ class FileTransfer(Base):
         :param dest_append_prefix: a list of path components to append to usual dest dir
         :param dryrun: whether only perform a dry-run, without actual copying. Default to false.
         :return: throw Exception if anything wrong happens;
-            otherwise a dict containing src, dest sites and filelist for dest.
+            otherwise a dict containing src, dest sites, filelist, and actual src and dest sites for dest.
+            For push, actual dest can be different from dest due to mapping, and src and actual src are the same.
         """
         if dest_site is None:
             dest_site = self.config['default_site']
@@ -250,8 +259,8 @@ class FileTransfer(Base):
         # get actual site
         dest_site = FileTransfer._normalize_site(dest_site)
         dest_actual_site = self._site_mapping_push(dest_site)
-        src_site = self._normalize_site({"path": savepath, "local": True})
-        ret_filelist = self._transfer(src_site, dest_site,
+        src_site = FileTransfer._normalize_site({"path": savepath, "local": True})
+        ret_filelist = self._transfer(src_site, dest_actual_site,
                                       filelist, {"relative": relative,
                                                  "dryrun": dryrun,
                                                  "dest_append_prefix": dest_append_prefix})
@@ -277,8 +286,6 @@ class FileTransfer(Base):
         else:
             dest_append_prefix = ''
 
-        dryrun = options['dryrun']
-
         # one of them must be local.
         assert src['local'] or dest['local']
 
@@ -303,7 +310,7 @@ class FileTransfer(Base):
         rsync_filelist_value, basename_list = FileTransfer._get_rsync_filelist(filelist, options)
 
         # run the actual rsync if not dryrun.
-        if not dryrun:
+        if not options['dryrun']:
             # create temp file for rsync_filelist_value.
             rsync_filelist_handle = tempfile.NamedTemporaryFile(mode='wt', delete=False)
             rsync_filelist_path = rsync_filelist_handle.name
@@ -316,13 +323,15 @@ class FileTransfer(Base):
             rsync_command = ["rsync", "-azvP",
                              rsync_relative_arg] + rsync_ssh_arg + [rsync_filelist_arg, rsync_src_spec, rsync_dest_spec]
 
-            # print the rsync command.
+            # print the rsync command. this printed one may not work if you directly copy it, since special characters,
+            # like spaces are not quoted properly.
             print(" ".join(rsync_command))
             stdout_arg = subprocess.PIPE if self.config['quiet'] else None
-            subprocess.run(rsync_command, check=True, stdout=stdout_arg)  # if not return 0, if fails.
-
-            # delete the filelist
-            os.remove(rsync_filelist_path)
+            try:
+                subprocess.run(rsync_command, check=True, stdout=stdout_arg)  # if not return 0, if fails.
+            finally:
+                # delete the filelist no matter what happens.
+                os.remove(rsync_filelist_path)
 
         # return the canonical filelist on the dest. This should be relative for local dest, and absolute for remote.
         ret_filelist = util.normalize_filelist_relative(rsync_filelist_value if options['relative'] else basename_list,
@@ -333,27 +342,27 @@ class FileTransfer(Base):
         """ map site to the actual site used using ``_config['site_mapping_push']``
 
         :param site: the site to be mapped
-        :return: the actual site
+        :return: a copy of the actual site
         """
         for map_pair_ in self.config['site_mapping_push']:
             if site == map_pair_['from']:
-                return map_pair_['to']
+                return map_pair_['to'].copy()
 
         # return site itself if there's no mapping for it.
-        return site
+        return site.copy()
 
     def _site_mapping_fetch(self, site: dict) -> dict:
         """ map site to the actual site used using ``_config['site_mapping_fetch']``
 
         :param site: the site to be mapped
-        :return: the actual site
+        :return: a copy of the actual site
         """
         for map_pair_ in self.config['site_mapping_fetch']:
             if site == map_pair_['from']:
-                return map_pair_['to']
+                return map_pair_['to'].copy()
 
         # return site itself if there's no mapping for it.
-        return site
+        return site.copy()
 
     def _get_rsync_site_spec(self, site: dict, append_prefix: str = None) -> tuple:
         """get the rysnc arguments for a site.

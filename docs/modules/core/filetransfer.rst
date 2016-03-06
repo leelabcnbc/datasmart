@@ -8,13 +8,40 @@ by the lab. The paths of data files are saved as metadata in database records.
 
 The most important functions in this module are :func:`datasmart.core.filetransfer.Filetransfer.push` and
 :func:`datasmart.core.filetransfer.Filetransfer.fetch`. Basically, what they do is pushing / fetching files
-between two :ref:`filetranser_site`.
+between two :ref:`filetransfer-site`.
 
-.. _filetransfer_site:
+.. _filetransfer-site:
 
 Site
 ====
-A site defines a directory, which can be either in the local computer, or in some remote server.
+A site defines a *directory*, which can be either in the local computer, or in some remote server.
+Examples are as follows.
+
+.. code-block:: json
+
+    {
+        "path": "raptor.cnbc.cmu.edu",
+        "prefix": "/opt/data/home/leelab",
+        "local": false
+    }
+    {
+        "path": "/Users/yimengzh/datajoin_data",
+        "local": true
+    }
+
+The first example defines a *remote* site, and second example a *local* site. Being local or not is distinguished by
+the ``local`` field.
+
+#.  for a local site, the ``path`` field should be a locally accessible directory
+    (relative or absolute paths are both fine).
+#.  for a remote site, the ``prefix`` field field shuold be a valid absolute path pointing to a directory on server
+    ``path``.
+
+Relative Path
+-------------
+When using relative path in a site (as well as all other places in DataSMART),
+it's always relative to the ``project_root`` in :func:`datasmart.core.base.Base.global_config`.
+
 
 Site mapping
 ============
@@ -30,6 +57,46 @@ hard drive. This kind of mapping exists for at least two reasons.
     with ``rsync`` + ``ssh``, which is only available for root for many NAS products.
     This means while files on the server are available for every one with (limited) access to NAS, users always have to
     operate with them locally.
+
+Config File
+===========
+a demo config file for the ``filetransfer`` module looks like the following.
+
+.. literalinclude:: /../datasmart/config/core/filetransfer/config.json
+    :language: json
+
+The fields are defined as follows.
+
+``local_data_dir``
+    the default destination directory for fetch and source directory for push.
+
+``site_mapping_fetch``
+    the mapping for fetch. each entry in the list must have a remote ``from`` and a local ``to``.
+
+``site_mapping_push``
+    similar as ``site_mapping_fetch``, but for push. The reason to have separate settings for push and fetch is
+    to be more flexible. One use case is that for fetch, the directories are mounted with read-only permission, and
+    for push, we push directory directory remotely without the local mount. This can avoid file copying and minimize the
+    risk of (unintentionally) modifying files.
+
+``remote_site_config``
+    this is a dictionary (in the Python sense) saving remote server's parameters. currently,
+    ssh username and ssh port are required.
+
+``default_site``
+    the default source site for fetch and destination site for push.
+
+``quiet``
+    whether showing all the details of file transmission.
+
+``local_fetch_option``
+    when the fetch source site is local (after doing the mapping), users can determine how to handle this. Three options
+    are:
+
+    * ``copy`` copy. This should be the case if you will change the files later.
+    * ``nocopy`` don't copy. This is ideal for read-only files.
+    * ``ask`` ask for user explicitly before transmission.
+
 
 .. automodule:: datasmart.core.filetransfer
    :members:

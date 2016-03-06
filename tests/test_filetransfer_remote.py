@@ -70,7 +70,7 @@ def check_remote_push_fetch_result(ret_push, ret_fetch, filelist,
         # 1 and 3
         assert filename3==os.path.join(push_prefix, file if relative_push else filebase)
         # 3 and 4
-        assert filename4 == datasmart.core.util.get_relative_path(filename3) if relative_fetch else os.path.basename(filename3)
+        assert filename4 == filename3 if relative_fetch else os.path.basename(filename3)
 
         # the files (filename1 and filename5) are indeed the same.
         assert os.path.exists(filename1) and os.path.exists(filename5)
