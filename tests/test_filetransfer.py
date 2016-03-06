@@ -9,6 +9,7 @@ import itertools
 import test_util
 import datasmart.core.filetransfer
 import datasmart.core.util
+from datasmart.core import schemautil
 
 
 def check_local_push_fetch_result(fetch_flag, ret, filelist, local_data_dir, external_site, subdirs_this=None,
@@ -123,9 +124,9 @@ def main_func():
         dest_append_prefix = test_util.fake.words()
         config_this = deepcopy(config_default)
         config_this['local_data_dir'] = local_data_dir
-        config_this['default_site']['local'] = True
-        config_this['default_site']['path'] = default_site_path
+        config_this['default_site'] = {'local': True, 'path': default_site_path}
         config_this['quiet'] = True  # less output.
+        assert schemautil.validate(datasmart.core.filetransfer.FileTransferConfigSchema.get_schema(), config_this)
         filetransfer_this = datasmart.core.filetransfer.FileTransfer(config_this)
         for x in itertools.product([subdirs, None], [True, False]):
             subdirs_this, relative = x

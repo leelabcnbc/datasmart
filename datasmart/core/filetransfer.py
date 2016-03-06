@@ -137,16 +137,18 @@ class FileTransfer(Base):
         """
         # check that if only has keys path local and prefix.
         site_new = site.copy()
+        if 'append_prefix' in site_new:
+            del site_new['append_prefix']
         if site_new['local']:
             # local site only has path.
-            assert sorted(site.keys()) == sorted(['path', 'local'])
+            assert sorted(site_new.keys()) == sorted(['path', 'local'])
             # this will do even when ``site_new['path']`` is absolute.
             # See the Python doc for ``os.path.join`` for why this is true.
             site_new['path'] = util.joinpath_norm(global_config['project_root'], site_new['path'])
             assert os.path.isabs(site_new['path'])
         else:
             # remote site has prefix as well.
-            assert sorted(site.keys()) == sorted(['path', 'prefix', 'local'])
+            assert sorted(site_new.keys()) == sorted(['path', 'prefix', 'local'])
             # convert everything to lower case and remove surrounding white characters.
             site_new['path'] = site_new['path'].lower().strip()
             site_new['prefix'] = os.path.normpath(site_new['prefix'])
