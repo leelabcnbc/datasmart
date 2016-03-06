@@ -317,11 +317,11 @@ class FileTransfer(Base):
             # create temp file for rsync_filelist_value.
             rsync_filelist_handle = tempfile.NamedTemporaryFile(mode='wt', delete=False)
             rsync_filelist_path = rsync_filelist_handle.name
-            rsync_filelist_handle.writelines([p + '\n' for p in rsync_filelist_value])
+            # add '/' in front in case we have file names starting with '#' or ';'
+            # see http://samba.2283325.n4.nabble.com/comments-with-in-files-from-td2510187.html
+            rsync_filelist_handle.writelines([os.sep + p + '\n' for p in rsync_filelist_value])
             rsync_filelist_handle.close()
-
             rsync_filelist_arg = "--files-from={}".format(rsync_filelist_path)
-            subprocess.run(["cat", rsync_filelist_path])
 
             # get the full rsync command.
             rsync_command = ["rsync", "-azvP",

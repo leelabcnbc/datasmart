@@ -57,9 +57,6 @@ def check_local_push_fetch_result(fetch_flag, ret, filelist, local_data_dir, ext
             dest_file_actual = os.path.join(external_site, dest_append_prefix,
                                             (file if relative else os.path.basename(file)))
             src_file_actual = os.path.join(*([local_data_dir] + subdirs_this + [file]))
-        if not os.path.exists(dest_file_actual):
-            print(dest_file_actual)
-            input('wait')
         assert os.path.exists(dest_file_actual)
         src_file = os.path.join(ret['src']['path'], filelist[idx])
         dest_file = os.path.join(ret['dest']['path'], ret['filelist'][idx])
@@ -134,15 +131,15 @@ def main_func():
     for i in range(10):
         #  since only local transfer is considered,
         filelist = test_util.gen_filelist(100, abs_path=False)
-        local_data_dir = " ".join(test_util.fake.words())
-        default_site_path = " ".join(test_util.fake.words())
-        external_site = " ".join(test_util.fake.words())
-        subdirs = test_util.fake.words()
-        dest_append_prefix = test_util.fake.words()
+        local_data_dir = " ".join(test_util.gen_filenames(3))
+        default_site_path = " ".join(test_util.gen_filenames(3))
+        external_site = " ".join(test_util.gen_filenames(3))
+        subdirs = test_util.gen_filenames(3)
+        dest_append_prefix = test_util.gen_filenames(3)
         config_this = deepcopy(config_default)
         config_this['local_data_dir'] = local_data_dir
         config_this['default_site'] = {'local': True, 'path': default_site_path}
-        config_this['quiet'] = False  # less output.
+        config_this['quiet'] = True  # less output.
         assert schemautil.validate(datasmart.core.filetransfer.FileTransferConfigSchema.get_schema(), config_this)
         filetransfer_this = datasmart.core.filetransfer.FileTransfer(config_this)
         for x in itertools.product([subdirs, None], [True, False], [dest_append_prefix, None]):

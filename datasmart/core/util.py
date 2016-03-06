@@ -41,10 +41,14 @@ def normalize_filelist_relative(filelist: list, prefix='') -> list:
 
     ret_filelist = [joinpath_norm(prefix, os.path.normpath(p)) for p in filelist]
     for p in ret_filelist:
+        assert '\n' not in p, 'LF should not exist in file name!'
+        assert '\r' not in p, 'CR should not exist in file name!'
+        assert '\0' not in p, 'NULL should not exist in file name!'
         assert os.path.normpath(p) == p, "should be already normalized!"
         assert p.strip() == p, "no spaces around filename! this is good for your sanity."
         assert not os.path.isabs(p), "file paths are all relative"
         b = os.path.basename(p)
+        assert '/' not in b, 'directory separator should not exist in file name!'
         assert b and (b != '.') and (b != '..'), "no trival file name like empty, ., or ..!"
     return ret_filelist
 

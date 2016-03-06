@@ -1,14 +1,15 @@
 import os
 import random
 from faker import Factory
+import string
 
 fake = Factory.create()
 
+
 def gen_filename():
-    if random.random() < 0:
-        return fake.sentence() + fake.file_extension()
-    else:
-        return ''.join(random.choice("""!"#:$%&'()*+,-;<=>?@[\]^_`{|}~""") for _ in range(10))
+    word_len = random.randint(1, 20)
+    return (''.join(random.choice(""" !"#:$%&'()*+,-;<=>?@[\]^_`{|}~""" + string.ascii_letters) for _ in
+                   range(word_len)) + fake.file_extension()).strip()
 
 
 def gen_filenames(n=100):
@@ -26,7 +27,7 @@ def gen_dirs(n=None, abs_path=True):
     if n == 0:
         return os.path.normpath(abs_char)
     else:
-        return os.path.normpath(os.path.join(*([abs_char] + [x[:-1] for x in fake.sentences(nb=n)])))
+        return os.path.normpath(os.path.join(*([abs_char] + gen_filenames(n=n))))
 
 
 def gen_filelist(n=100, abs_path=True):
