@@ -117,6 +117,13 @@ def local_push(filetransfer, filelist, local_data_dir, default_site_path, subdir
         ret2 = filetransfer.push(filelist=filelist, relative=relative, subdirs=subdirs_this,
                                  dest_append_prefix=dest_append_prefix, dryrun=True)
         assert ret == ret2
+
+        # remove dir
+        if dest_append_prefix != ['']:
+            assert os.path.exists(os.path.join(default_site_path, *dest_append_prefix))
+            filetransfer.remove_dir(site=ret['dest'])
+            assert not os.path.exists(os.path.join(default_site_path, *dest_append_prefix))
+
     finally:
         if os.path.exists(local_data_dir):
             shutil.rmtree(local_data_dir)
