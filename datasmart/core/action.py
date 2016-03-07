@@ -1,7 +1,8 @@
+import json
 import os
 import pickle
 from abc import abstractmethod
-import json
+
 from bson import ObjectId
 
 from . import util
@@ -126,6 +127,7 @@ class DBAction(Action):
 
     def push_files(self, id_: ObjectId, filelist: list, site: dict = None, relative: bool = True,
                    subdirs: list = None, dryrun: bool = False):
+        assert id_ in self.result_ids, "you can only push files related to you!"
         filetransfer_instance = FileTransfer()
         self.__db_instance.connect()
         collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
@@ -201,6 +203,8 @@ class DBAction(Action):
 
         # first send ssh command to rm dir, and then get back the return value. make sure succeed.
         # then remove the record id.
+        if len(site_list) == 0:
+            return
         filetransfer = FileTransfer()
         correct_append_prefix = util.joinpath_norm(*(self.table_path), str(id_))
         for site in site_list:
@@ -383,12 +387,21 @@ class DBActionWithSchema(DBAction):
     def dbschema_instance(self):
         return self._dbschema_instance
 
+    def remove_files_for_one_record(self, record):
+        self.remove_files(record['_id'], self.sites_to_remove(record))
+
+    @abstractmethod
+    def sites_to_remove(self, record):
+        """ a list of sites to remove.
+        I put this here because I assume your things have schema, so we don't need free form stuff to determine
+        what to remove.
+        :param record:
+        :return:
+        """
+        pass
+
 
 class ManualDBActionWithSchema(DBActionWithSchema):
-    @abstractmethod
-    def remove_files_for_one_record(self, record):
-        pass  # there's no file to be returned.
-
     def is_stale(self, record, db_instance) -> bool:
         # manually typed stuff never goes stale...
         return False

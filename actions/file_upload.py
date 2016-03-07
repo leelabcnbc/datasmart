@@ -38,8 +38,8 @@ class FileUploadAction(ManualDBActionWithSchema):
     def __init__(self, config=None):
         super().__init__(config)
 
-    def remove_files_for_one_record(self, record):
-        self.remove_files(record['_id'], [record['uploaded_files']['site']])
+    def sites_to_remove(self, record):
+        return [record['uploaded_files']['site']]
 
     def custom_info(self) -> str:
         return "this is the class for upload files, please put all data you want under {}!".format(

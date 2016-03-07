@@ -39,11 +39,11 @@ class CortexExpSchema(DBSchema):
 
 
 class CortexExpAction(ManualDBActionWithSchema):
+    def sites_to_remove(self, record):
+        return []
+
     def custom_info(self) -> str:
         return "this is the action"
-
-    def remove_files_for_one_record(self, record):
-        pass
 
     def before_insert_record(self, record):
         pass
