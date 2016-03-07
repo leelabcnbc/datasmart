@@ -6,4 +6,4 @@ if __name__ == '__main__':
     if not test:
         a.run()
     else:
-        a.clear_results()
+        a.revoke()

@@ -50,6 +50,13 @@ class Action(Base):
         """
         pass
 
+    def revoke(self):
+        """ negate the effects of this action.
+
+        :return:
+        """
+        raise RuntimeError("this action can't be revoked!")
+
     def run(self):
         if self.is_finished():
             print("the action has been finished!")
@@ -117,31 +124,35 @@ class DBAction(Action):
     def insert_results(self, results):
         assert isinstance(results, list)
         self.__db_instance.connect()
-        collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
-        for result in results:
-            assert result['_id'] in self.result_ids
-            assert isinstance(result['_id'], ObjectId)  # must be true by design.
-            assert (collection_instance.find_one({"_id": result['_id']}) is None)
-            assert collection_instance.insert_one(result).acknowledged
-        self.__db_instance.disconnect()
+        try:
+            collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
+            for result in results:
+                assert result['_id'] in self.result_ids
+                assert isinstance(result['_id'], ObjectId)  # must be true by design.
+                assert (collection_instance.find_one({"_id": result['_id']}) is None)
+                assert collection_instance.insert_one(result).acknowledged
+        finally:
+            self.__db_instance.disconnect()
 
     def push_files(self, id_: ObjectId, filelist: list, site: dict = None, relative: bool = True,
                    subdirs: list = None, dryrun: bool = False):
         assert id_ in self.result_ids, "you can only push files related to you!"
         filetransfer_instance = FileTransfer()
         self.__db_instance.connect()
-        collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
-        # make sure we don't push files after record is constructed.
-        assert collection_instance.find_one({"_id": id_}) is None, "only push files before inserting the record!"
-        for x in filelist:
-            assert (not os.path.isabs(x))
-        # push file under {prefix}/self.table_path[0]/self.table_path[1]/id_.
-        # {prefix}/self.table_path[0]/self.table_path[1] must have been created beforehand, since rsync can only
-        # create one level of folders.
-        ret = filetransfer_instance.push(filelist=filelist, dest_site=site, relative=relative, subdirs=subdirs,
-                                         dest_append_prefix=list(self.table_path + (str(id_),)),
-                                         dryrun=dryrun)
-        self.__db_instance.disconnect()
+        try:
+            collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
+            # make sure we don't push files after record is constructed.
+            assert collection_instance.find_one({"_id": id_}) is None, "only push files before inserting the record!"
+            for x in filelist:
+                assert (not os.path.isabs(x))
+            # push file under {prefix}/self.table_path[0]/self.table_path[1]/id_.
+            # {prefix}/self.table_path[0]/self.table_path[1] must have been created beforehand, since rsync can only
+            # create one level of folders.
+            ret = filetransfer_instance.push(filelist=filelist, dest_site=site, relative=relative, subdirs=subdirs,
+                                             dest_append_prefix=list(self.table_path + (str(id_),)),
+                                             dryrun=dryrun)
+        finally:
+            self.__db_instance.disconnect()
         return ret
 
     @staticmethod
@@ -221,36 +232,43 @@ class DBAction(Action):
         # then check if is stale
         # then remove it if stale.
         self.__db_instance.connect()
-        collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
-        for record in collection_instance.find():
-            if self.is_stale(record, self.__db_instance):
-                print("the following record will be cleaned up:")
-                print(record)
-                input("press enter to confirm... otherwise, press ctrl+c to stop")
-                self.remove_one_record(collection_instance, record)
-        self.__db_instance.disconnect()
+        try:
+            collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
+            for record in collection_instance.find():
+                if self.is_stale(record, self.__db_instance):
+                    print("the following record will be cleaned up:")
+                    print(record)
+                    input("press enter to confirm... otherwise, press ctrl+c to stop")
+                    self.remove_one_record(collection_instance, record)
+        finally:
+            self.__db_instance.disconnect()
 
-    def clear_results(self):
+    def revoke(self):
         """ delete result ids from the database, in case you want to start over.
         TODO: rewrite using remove_one_result
         :return:
         """
         assert isinstance(self.result_ids, list)
         self.__db_instance.connect()
-        collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
-        for id_ in self.result_ids:
-            record = collection_instance.find_one({"_id": id_})
-            if record is not None:
-                self.remove_one_record(collection_instance, record)
-        self.__db_instance.disconnect()
+        try:
+            collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
+            for id_ in self.result_ids:
+                record = collection_instance.find_one({"_id": id_})
+                if record is not None:
+                    self.remove_one_record(collection_instance, record)
+        finally:
+            self.__db_instance.disconnect()
         print("done clearing!")
 
     def is_inserted_one(self, id_):
         self.__db_instance.connect()
-        collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
-        if collection_instance.find_one({"_id": id_}) is None:
-            return False
-        self.__db_instance.disconnect()
+        try:
+            collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
+            if collection_instance.find_one({"_id": id_}) is None:
+                return False
+        finally:
+            self.__db_instance.disconnect()
+        return True
 
     def is_finished(self) -> bool:
         """ simply check that each result id is in the table
@@ -308,12 +326,14 @@ class DBAction(Action):
 
         assert os.path.exists(self.__query_template_path)
         self.__db_instance.connect()
-        # run the query, passing it the database handle as 'client_instance'.
-        locals_query = {'client_instance': self.__db_instance.client_instance}
-        globals_query = {}
-        with open(self.__query_template_path, 'rt') as f:
-            exec(f.read(), globals_query, locals_query)
-        self.__db_instance.disconnect()
+        try:
+            # run the query, passing it the database handle as 'client_instance'.
+            locals_query = {'client_instance': self.__db_instance.client_instance}
+            globals_query = {}
+            with open(self.__query_template_path, 'rt') as f:
+                exec(f.read(), globals_query, locals_query)
+        finally:
+            self.__db_instance.disconnect()
         assert 'result' in locals_query, "I need a variable called 'result' after executing the query document!"
 
         # then based on this result, I need to generate a set of ids that will be inserted.
@@ -325,10 +345,12 @@ class DBAction(Action):
         # check that results are not found.
         assert isinstance(post_prepare_result['result_ids'], list)
         self.__db_instance.connect()
-        collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
-        for id_ in post_prepare_result['result_ids']:
-            assert collection_instance.find_one({"_id": id_}) is None
-        self.__db_instance.disconnect()
+        try:
+            collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
+            for id_ in post_prepare_result['result_ids']:
+                assert collection_instance.find_one({"_id": id_}) is None, "the proposed result ids exist in the DB!"
+        finally:
+            self.__db_instance.disconnect()
 
         self.__result_ids = post_prepare_result['result_ids']
         self.__prepare_result = post_prepare_result
@@ -337,8 +359,9 @@ class DBAction(Action):
 
     @abstractmethod
     def prepare_post(self, query_result) -> dict:
-        """ generate a list of unique ids that will be inserted into the DB
+        """ minimally, generate a list of unique ids that will be inserted into the DB
 
+        this step could involve other things, such as letting user input some action-specific data.
         :param query_result:
         :return:
         """
@@ -347,7 +370,8 @@ class DBAction(Action):
 
     @abstractmethod
     def generate_query_doc_template(self) -> str:
-        """ default template.
+        """ default query document template.
+
         :return:
         """
         return "result = None"

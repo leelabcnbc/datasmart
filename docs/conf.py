@@ -33,7 +33,8 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.coverage',
     'sphinx.ext.viewcode',
-    'sphinx.ext.inheritance_diagram'
+    'sphinx.ext.inheritance_diagram',
+    'sphinx.ext.todo'
 ]
 
 
@@ -296,3 +297,6 @@ autodoc_default_flags = ['members', 'undoc-members',
 
 # config for inheritance graph
 inheritance_graph_attrs = dict(rankdir="TB")
+
+# config for todo
+todo_include_todos = True
