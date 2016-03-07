@@ -157,6 +157,37 @@ class FileTransfer(Base):
 
         return site_new
 
+    def remove_dir(self, site: dict) -> None:
+        """ remove an automatically generated directory by push.
+
+        :param site: a site with 'append_prefix'. I won't do checking on this one, since it should be normalized.
+        :return: None if everything is fine; otherwise throw Exception.
+        """
+        # make sure that append_prefix is not trivial.
+
+
+
+        append_prefix = site['append_prefix']
+        assert util.joinpath_norm(append_prefix) != util.joinpath_norm('')
+        stdout_arg = subprocess.PIPE if self.config['quiet'] else None
+
+        site_mapped = self._site_mapping_fetch(site)
+
+        if site_mapped['local']:
+            rm_site_spec = util.joinpath_norm(site_mapped['path'], append_prefix)
+            full_command = ['rm', '-rf', rm_site_spec]
+        else:
+            rm_site_spec_remote = util.joinpath_norm(site_mapped['prefix'], append_prefix)
+
+            site_info = self.config['remote_site_config'][site_mapped['path']]
+
+            rm_command = " ".join(['rm', '-rf', shlex.quote(rm_site_spec_remote)])
+            full_command = ['ssh', site_info['ssh_username'] + '@' + site_mapped['path'],
+                            '-p', str(site_info['ssh_port']), rm_command]
+
+        print(" ".join(full_command))
+        subprocess.run(full_command, check=True, stdout=stdout_arg)
+
     def fetch(self, filelist: list, src_site: dict = None, relative: bool = False, subdirs: list = None,
               local_fetch_option=None, dryrun: bool = False) -> dict:
         """ fetch files from the site.
@@ -199,7 +230,7 @@ class FileTransfer(Base):
 
         copy_flag = True
 
-        if src_actual_site['local'] and (not src_site['local']): # so there's mapping.
+        if src_actual_site['local'] and (not src_site['local']):  # so there's mapping.
             if local_fetch_option == 'ask':
                 a = input("do you want to copy the files? press enter to copy, enter anything then enter to not copy")
                 if a:
@@ -254,6 +285,10 @@ class FileTransfer(Base):
         dest_append_prefix = util.joinpath_norm(*dest_append_prefix)
         # append prefix must be relative path.
         assert not (os.path.isabs(dest_append_prefix))
+        if len(dest_append_prefix) == 2:
+            assert dest_append_prefix != '..'
+        elif len(dest_append_prefix) > 2:
+            assert dest_append_prefix[:3] != '..' + os.path.sep
         # normalize the filelist first.
         filelist = util.normalize_filelist_relative(filelist)
         savepath = util.joinpath_norm(self.config['local_data_dir'], self._reformat_subdirs(subdirs))
@@ -391,7 +426,7 @@ class FileTransfer(Base):
             site_info = self.config['remote_site_config'][site['path']]
             prefix = site['prefix']
             rsync_site_spec = site_info['ssh_username'] + '@' + site['path'] + ':' + shlex.quote(
-                util.joinpath_norm(prefix, append_prefix)+os.path.sep)
+                util.joinpath_norm(prefix, append_prefix) + os.path.sep)
             # must quote since this string after ``:`` is parsed by remote shell. quote it to remove all wildcard
             # expansion... should test wild card to see if it works...
             rsync_ssh_arg_site = ['-e', "ssh -p {}".format(site_info['ssh_port'])]

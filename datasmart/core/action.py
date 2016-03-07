@@ -97,13 +97,18 @@ class DBAction(Action):
     def result_ids(self):
         return self.__result_ids
 
-    def find_one_arbitrary(self, id_, path):
-        """ check if a record exists in any arbitrary (db, collection).
-        base for constraints among collections.
-        :return:
-        """
-        pass
-
+    # def find_one_arbitrary(self, id_, table_path):
+    #     """ check if a record exists in any arbitrary (db, collection).
+    #
+    #     base for constraints among collections.
+    #     :return:
+    #     """
+    #     assert len(table_path) == 2
+    #     self.__db_instance.connect()
+    #     collection_instance = self.__db_instance.client_instance[table_path[0]][table_path[1]]
+    #     result = collection_instance.find_one({"_id": id_})
+    #     self.__db_instance.disconnect()
+    #     return result
 
     def insert_results(self, results):
         assert isinstance(results, list)
@@ -111,7 +116,7 @@ class DBAction(Action):
         collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
         for result in results:
             assert result['_id'] in self.result_ids
-            # assert isinstance(id, ObjectId)  # not necessarily true.
+            assert isinstance(id, ObjectId)  # must be true by design.
             assert (collection_instance.find_one({"_id": result['_id']}) is None)
             assert collection_instance.insert_one(result).acknowledged
         self.__db_instance.disconnect()
@@ -151,6 +156,7 @@ class DBAction(Action):
         :return: None if everything works fine. Otherwise, throw some exception.
         """
         assert self.remove_files_for_one_record is not DBAction.remove_files_for_one_record, "you must override del!"
+        # I think the easist way is calling remove_files over all sites.
 
     def remove_one_record(self, collection_instance, record):
         """  internal method to completely remove a record.
@@ -161,10 +167,10 @@ class DBAction(Action):
         """
         assert collection_instance.find_one({"_id": record['id_']}) is not None
         self.remove_files_for_one_record(record)
-        collection_instance.delete_one({"_id": record['id_']})  # TODO: check if this would work if id_ is not in it.
+        collection_instance.delete_one({"_id": record['id_']})
         assert collection_instance.find_one({"_id": record['id_']}) is None
 
-    def remove_files(self, id_, site_list):
+    def remove_files(self, id_, site_list) -> None:
         """ remove the files associated with one ``id_`` in this collection, over many sites.
 
         By design, I assumed that you upload your files in the form of
@@ -177,12 +183,16 @@ class DBAction(Action):
 
         :param id_: _id field of the record.
         :param site_list: which site's file to remove?
-        :return:
+        :return: None if everything is fine; otherwise throws errors.
         """
 
         # first send ssh command to rm dir, and then get back the return value. make sure succeed.
         # then remove the record id.
-        pass
+        filetransfer = FileTransfer()
+        correct_append_prefix = util.joinpath_norm(self.table_path, str(id_))
+        for site in site_list:
+            assert site['append_prefix'] == correct_append_prefix
+            filetransfer.remove_dir(site)
 
     def global_clean_up(self):
         """
@@ -236,7 +246,7 @@ class DBAction(Action):
             self.__db_instance.connect()
             collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
             for id_ in self.result_ids:
-                # assert isinstance(id, ObjectId)  # not necessarily true.
+                assert isinstance(id, ObjectId)
                 if collection_instance.find_one({"_id": id_}) is None:
                     return False
         finally:
@@ -265,7 +275,6 @@ class DBAction(Action):
             return True
 
         return False
-
 
     def prepare(self):
         if not os.path.exists(self.__query_template_path):
@@ -362,6 +371,13 @@ class DBActionWithSchema(DBAction):
 
 
 class ManualDBActionWithSchema(DBActionWithSchema):
+    def remove_files_for_one_record(self, record):
+        pass  # there's no file to be returned.
+
+    def is_stale(self, record, db_instance) -> bool:
+        # manually typed stuff never goes stale...
+        return False
+
     def __init__(self, config=None):
         super().__init__(config)
 
@@ -375,6 +391,14 @@ class ManualDBActionWithSchema(DBActionWithSchema):
         # ignore the query result, simply return a ID to go.
         return {'result_ids': [ObjectId()]}
 
+    @abstractmethod
+    def before_insert_record(self, record):
+        """ this can be used to upload files, etc.
+        :param record:
+        :return: None if nothing happens. throw exception if bad thing happens.
+        """
+        pass
+
     def perform(self) -> None:
         """ this is the main function actually doing things.
         :return:
@@ -386,7 +410,7 @@ class ManualDBActionWithSchema(DBActionWithSchema):
         print("done!")
 
     def export_record_template(self):
-        savepath = util.joinpath_norm(self.global_config['project_root'],self.config['savepath'])
+        savepath = util.joinpath_norm(self.global_config['project_root'], self.config['savepath'])
         if os.path.exists(savepath):
             print("file exists! I don't want to overwrite it, and I assume that file is your template.")
         else:

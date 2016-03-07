@@ -7,6 +7,7 @@ import subprocess
 
 
 class CortexExpSchemaJSL(jsl.Document):
+    schema_revision = jsl.IntField(enum=[1], required=True)  # the version of schema, in case we have drastic change
     timestamp = jsl.StringField(format="date-time", required=True)
     monkey = jsl.StringField(enum=["leo", "koko", "gabby", "frugo"], required=True)
     code_repo = jsl.DocumentField(schemautil.GitRepoRef, required=True)
@@ -20,7 +21,6 @@ class CortexExpSchema(DBSchema):
     schema_path = ('actions', 'cortex_exp')
 
     def get_schema(self) -> dict:
-        print(schemautil.get_schema_string(CortexExpSchemaJSL))
         return CortexExpSchemaJSL.get_schema()
 
     def __init__(self, config=None):
@@ -38,6 +38,9 @@ class CortexExpSchema(DBSchema):
 
 
 class CortexExpAction(ManualDBActionWithSchema):
+    def before_insert_record(self, record):
+        pass
+
     table_path = ('leelab_primate', 'cortex')
     config_path = ('actions', 'cortex_exp')
     dbschema = CortexExpSchema
@@ -51,6 +54,10 @@ class CortexExpAction(ManualDBActionWithSchema):
                                                        cwd=config['cortex_expt_repo_path']).decode().strip()
         cortex_expt_repo_hash = subprocess.check_output(['git', 'rev-parse', '--verify', 'HEAD'],
                                                         cwd=config['cortex_expt_repo_path']).decode().strip()
+        git_status_output = subprocess.check_output(['git', 'status', '--porcelain'],
+                                                    cwd=config['cortex_expt_repo_path']).decode().strip()
+        assert not git_status_output, "the repository must be clean!"
+
         return {
             'cortex_expt_repo_url': cortex_expt_repo_url,
             'cortex_expt_repo_hash': cortex_expt_repo_hash,
