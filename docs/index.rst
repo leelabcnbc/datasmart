@@ -13,6 +13,7 @@ Contents:
 
    user_guide/intro
    modules/core/action
+   modules/core/dbschema
    modules/core/filetransfer
 
 
