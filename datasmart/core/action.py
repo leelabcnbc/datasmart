@@ -206,7 +206,7 @@ class DBAction(Action):
         if len(site_list) == 0:
             return
         filetransfer = FileTransfer()
-        correct_append_prefix = util.joinpath_norm(*(self.table_path), str(id_))
+        correct_append_prefix = util.joinpath_norm(*(self.table_path + (str(id_),)))
         for site in site_list:
             assert site['append_prefix'] == correct_append_prefix
             filetransfer.remove_dir(site)

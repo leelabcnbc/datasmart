@@ -12,6 +12,8 @@ Contents:
    :maxdepth: 2
 
    user_guide/intro
+   modules/core/action
+   modules/core/filetransfer
 
 
 Core Modules
