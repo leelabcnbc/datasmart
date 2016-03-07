@@ -171,7 +171,8 @@ class FileTransfer(Base):
         :param relative: copy full directory structure or just last part of each file path,
             like the same-named option in ``rsync``.
         :param subdirs: a list of path components under ``_config['local_data_dir']``.fetch would create them if needed.
-        :param local_fetch_option: whether still fetch if it's local dir.
+        :param local_fetch_option: whether still fetch if it's local dir. By default, it will use the value
+            set in :ref:`filetransfer-config-file`.
         :param dryrun: whether only perform a dry-run, without actual copying. Default to false.
         :return: throw Exception if anything wrong happens;
             otherwise a dict containing src, dest sites, filelist, and actual src and dest sites for dest.
@@ -198,7 +199,7 @@ class FileTransfer(Base):
 
         copy_flag = True
 
-        if src_actual_site['local'] and (not src_site['local']):
+        if src_actual_site['local'] and (not src_site['local']): # so there's mapping.
             if local_fetch_option == 'ask':
                 a = input("do you want to copy the files? press enter to copy, enter anything then enter to not copy")
                 if a:
@@ -237,6 +238,7 @@ class FileTransfer(Base):
             like the same-named option in ``rsync``.
         :param subdirs: a list of path components under ``_config['local_data_dir']``. must exist.
         :param dest_append_prefix: a list of path components to append to usual dest dir
+            see :ref:`filetransfer-site`.
         :param dryrun: whether only perform a dry-run, without actual copying. Default to false.
         :return: throw Exception if anything wrong happens;
             otherwise a dict containing src, dest sites, filelist, and actual src and dest sites for dest.
@@ -359,7 +361,7 @@ class FileTransfer(Base):
         """ map site to the actual site used using ``_config['site_mapping_fetch']``
 
         :param site: the site to be mapped
-        :return: a copy of the actual site
+        :return: a **copy** of the actual site
         """
         for map_pair_ in self.config['site_mapping_fetch']:
             if site == map_pair_['from']:
@@ -381,7 +383,7 @@ class FileTransfer(Base):
         if site['local']:
             # for local site, we don't need additional argument for ssh, only append prefix if needed.
             rsync_site_spec = util.joinpath_norm(site['path'], append_prefix) + os.path.sep
-            # sep is important to force it being a directory. This is useful when filelist only has one file.
+            # sep is IMPORTANT to force it being a directory. This is useful when filelist only has ONE file.
             rsync_ssh_arg_site = None
         else:
             # for remote site, fetch the push prefix
@@ -389,8 +391,8 @@ class FileTransfer(Base):
             site_info = self.config['remote_site_config'][site['path']]
             prefix = site['prefix']
             rsync_site_spec = site_info['ssh_username'] + '@' + site['path'] + ':' + shlex.quote(
-                util.joinpath_norm(prefix, append_prefix + os.path.sep))
-            # must quote since this string after ``:`` is parsed by remote shell. Double quote it to remove all wildcard
+                util.joinpath_norm(prefix, append_prefix)+os.path.sep)
+            # must quote since this string after ``:`` is parsed by remote shell. quote it to remove all wildcard
             # expansion... should test wild card to see if it works...
             rsync_ssh_arg_site = ['-e', "ssh -p {}".format(site_info['ssh_port'])]
 

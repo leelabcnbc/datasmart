@@ -10,7 +10,7 @@ import test_util
 import datasmart.core.filetransfer
 import datasmart.core.util
 from datasmart.core import schemautil
-
+import random
 
 def check_local_push_fetch_result(fetch_flag, ret, filelist, local_data_dir, external_site, subdirs_this=None,
                                   relative=True, dest_append_prefix=None):
@@ -130,7 +130,7 @@ def main_func():
 
     for i in range(10):
         #  since only local transfer is considered,
-        filelist = test_util.gen_filelist(100, abs_path=False)
+        filelist = test_util.gen_filelist(random.choice([100,1]), abs_path=False)
         local_data_dir = " ".join(test_util.gen_filenames(3))
         default_site_path = " ".join(test_util.gen_filenames(3))
         external_site = " ".join(test_util.gen_filenames(3))
