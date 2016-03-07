@@ -79,5 +79,5 @@ class FileTransferSiteAndFileListLocalAuto(jsl.Document):
 
 
 class FileTransferSiteAndFileListRemoteAuto(jsl.Document):
-    site = jsl.DocumentField(FileTransferSiteLocalAuto, required=True)
+    site = jsl.DocumentField(FileTransferSiteRemoteAuto, required=True)
     filelist = FileListRelative

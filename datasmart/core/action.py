@@ -82,6 +82,9 @@ class DBAction(Action):
         self.__result_ids = None
         self.is_prepared()
 
+    def get_file_transfer_config(self):
+        return FileTransfer().config
+
     def get_prepare_path(self):
         return self.global_config['project_root']
 
@@ -116,12 +119,13 @@ class DBAction(Action):
         collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
         for result in results:
             assert result['_id'] in self.result_ids
-            assert isinstance(id, ObjectId)  # must be true by design.
+            assert isinstance(result['_id'], ObjectId)  # must be true by design.
             assert (collection_instance.find_one({"_id": result['_id']}) is None)
             assert collection_instance.insert_one(result).acknowledged
         self.__db_instance.disconnect()
 
-    def push_files(self, id_: ObjectId, filelist: list, site: dict = None, relative: bool = True, subdirs: list = None):
+    def push_files(self, id_: ObjectId, filelist: list, site: dict = None, relative: bool = True,
+                   subdirs: list = None, dryrun: bool = False):
         filetransfer_instance = FileTransfer()
         self.__db_instance.connect()
         collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
@@ -133,8 +137,17 @@ class DBAction(Action):
         # {prefix}/self.table_path[0]/self.table_path[1] must have been created beforehand, since rsync can only
         # create one level of folders.
         ret = filetransfer_instance.push(filelist=filelist, dest_site=site, relative=relative, subdirs=subdirs,
-                                         dest_append_prefix=list(self.table_path + (str(id_),)))
+                                         dest_append_prefix=list(self.table_path + (str(id_),)),
+                                         dryrun=dryrun)
         self.__db_instance.disconnect()
+        return ret
+
+    @staticmethod
+    def fetch_files(filelist: list, site: dict = None, relative: bool = True,
+                    subdirs: list = None, local_fetch_option=None, dryrun: bool = False):
+        filetransfer_instance = FileTransfer()
+        ret = filetransfer_instance.fetch(filelist=filelist, src_site=site, relative=relative, subdirs=subdirs,
+                                          local_fetch_option=local_fetch_option, dryrun=dryrun)
         return ret
 
     @abstractmethod
@@ -165,10 +178,10 @@ class DBAction(Action):
         :param id_:
         :return:
         """
-        assert collection_instance.find_one({"_id": record['id_']}) is not None
+        assert collection_instance.find_one({"_id": record['_id']}) is not None
         self.remove_files_for_one_record(record)
-        collection_instance.delete_one({"_id": record['id_']})
-        assert collection_instance.find_one({"_id": record['id_']}) is None
+        collection_instance.delete_one({"_id": record['_id']})
+        assert collection_instance.find_one({"_id": record['_id']}) is None
 
     def remove_files(self, id_, site_list) -> None:
         """ remove the files associated with one ``id_`` in this collection, over many sites.
@@ -189,7 +202,7 @@ class DBAction(Action):
         # first send ssh command to rm dir, and then get back the return value. make sure succeed.
         # then remove the record id.
         filetransfer = FileTransfer()
-        correct_append_prefix = util.joinpath_norm(self.table_path, str(id_))
+        correct_append_prefix = util.joinpath_norm(*(self.table_path), str(id_))
         for site in site_list:
             assert site['append_prefix'] == correct_append_prefix
             filetransfer.remove_dir(site)
@@ -226,6 +239,7 @@ class DBAction(Action):
             if record is not None:
                 self.remove_one_record(collection_instance, record)
         self.__db_instance.disconnect()
+        print("done clearing!")
 
     def is_inserted_one(self, id_):
         self.__db_instance.connect()
@@ -246,7 +260,7 @@ class DBAction(Action):
             self.__db_instance.connect()
             collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
             for id_ in self.result_ids:
-                assert isinstance(id, ObjectId)
+                assert isinstance(id_, ObjectId)
                 if collection_instance.find_one({"_id": id_}) is None:
                     return False
         finally:
@@ -371,6 +385,7 @@ class DBActionWithSchema(DBAction):
 
 
 class ManualDBActionWithSchema(DBActionWithSchema):
+    @abstractmethod
     def remove_files_for_one_record(self, record):
         pass  # there's no file to be returned.
 
@@ -378,6 +393,7 @@ class ManualDBActionWithSchema(DBActionWithSchema):
         # manually typed stuff never goes stale...
         return False
 
+    @abstractmethod
     def __init__(self, config=None):
         super().__init__(config)
 
@@ -399,13 +415,20 @@ class ManualDBActionWithSchema(DBActionWithSchema):
         """
         pass
 
+    @abstractmethod
+    def custom_info(self) -> str:
+        return ""
+
     def perform(self) -> None:
         """ this is the main function actually doing things.
         :return:
         """
         self.export_record_template()
+        print("custom info from this action follows.")
+        print(self.custom_info())
         input("Press Enter to continue after finish editing and saving the tempalte...")
         record = self.import_record_template()
+        self.before_insert_record(record)
         self.insert_results([record])
         print("done!")
 

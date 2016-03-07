@@ -293,7 +293,7 @@ class FileTransfer(Base):
         filelist = util.normalize_filelist_relative(filelist)
         savepath = util.joinpath_norm(self.config['local_data_dir'], self._reformat_subdirs(subdirs))
         # check that subdir exists.
-        assert os.path.exists(savepath)
+        assert os.path.exists(savepath), "{} doesn't exist!".format(savepath)
 
         # the following is disabled, since site mapping is just a workaround for local processing.
         # get actual site

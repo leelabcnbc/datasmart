@@ -1,0 +1,15 @@
+{
+  "schema_revision": 1,
+  "timestamp": "{{timestamp}}",
+  "uploaded_files": {
+    "site": {
+      "path": "yimengzh.cnbc.cmu.edu",
+      "local": false,
+      "prefix": "/home/yimengzh_everyday/datasmart_data_test"
+    },
+    "filelist": [
+      "xxx.mat"
+    ]
+  },
+  "notes": ""
+}

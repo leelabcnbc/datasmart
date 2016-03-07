@@ -15,6 +15,7 @@ class CortexExpSchemaJSL(jsl.Document):
     recorded_files = jsl.DocumentField(schemautil.FileTransferSiteAndFileListRemote, required=True)
     additional_parameters = jsl.StringField(required=True)
     notes = jsl.StringField(required=True)
+    # TODO: add timing file info, etc.
 
 
 class CortexExpSchema(DBSchema):
@@ -38,6 +39,12 @@ class CortexExpSchema(DBSchema):
 
 
 class CortexExpAction(ManualDBActionWithSchema):
+    def custom_info(self) -> str:
+        return "this is the action"
+
+    def remove_files_for_one_record(self, record):
+        pass
+
     def before_insert_record(self, record):
         pass
 
