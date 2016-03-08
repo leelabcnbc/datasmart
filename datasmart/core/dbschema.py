@@ -1,8 +1,8 @@
 import json
-from jsonschema import validate, FormatChecker, Draft4Validator
-from jsonschema.exceptions import ValidationError, SchemaError
+from jsonschema import Draft4Validator
 from abc import ABC, abstractmethod
 from . import util
+from . import schemautil
 
 
 class DBSchema(ABC):
@@ -67,13 +67,7 @@ class DBSchema(ABC):
 
     def validate_record(self, record) -> bool:
         # this will raise error if there's problem
-        try:
-            validate(instance=record, schema=self.get_schema(), format_checker=FormatChecker(),
-                     cls=Draft4Validator)
-        except (ValidationError, SchemaError) as e:
-            print(e)
-            return False
-        return True
+        return schemautil.validate(self.get_schema(), record)
 
     def generate_record(self, record):
         # validate record using the schema

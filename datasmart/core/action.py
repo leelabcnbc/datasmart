@@ -261,6 +261,11 @@ class DBAction(Action):
         print("done clearing!")
 
     def is_inserted_one(self, id_):
+        """ this can be used to help a partially executed operation to identify which results need insertion.
+
+        :param id_:
+        :return:
+        """
         self.__db_instance.connect()
         try:
             collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
@@ -405,11 +410,11 @@ class DBActionWithSchema(DBAction):
     def __init__(self, config=None):
         super().__init__(config)
         assert self.__class__.dbschema is not DBActionWithSchema.dbschema
-        self._dbschema_instance = self.__class__.dbschema(self.get_schema_config())
+        self.__dbschema_instance = self.__class__.dbschema(self.get_schema_config())
 
     @property
     def dbschema_instance(self):
-        return self._dbschema_instance
+        return self.__dbschema_instance
 
     def remove_files_for_one_record(self, record):
         self.remove_files(record['_id'], self.sites_to_remove(record))
