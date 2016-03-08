@@ -5,9 +5,9 @@
 An action in DataSMART corresponds to an actual data processing step in a data analysis pipeline.
 Example actions (or data processing steps) are:
 
-#. upload spiking neural data along with metadata
-#. do automatic spike sorting on raw data.
-#. do alignment of Calcium imaging data.
+* upload spiking neural data along with metadata
+* do automatic spike sorting on raw data.
+* do alignment of Calcium imaging data.
 
 
 Two phases in an action

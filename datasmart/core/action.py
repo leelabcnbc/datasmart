@@ -108,7 +108,7 @@ class DBAction(Action):
     def result_ids(self):
         return self.__result_ids
 
-    # def find_one_arbitrary(self, id_, table_path):
+    # def find_one_arbitrary(self, _id, table_path):
     #     """ check if a record exists in any arbitrary (db, collection).
     #
     #     base for constraints among collections.
@@ -117,7 +117,7 @@ class DBAction(Action):
     #     assert len(table_path) == 2
     #     self.__db_instance.connect()
     #     collection_instance = self.__db_instance.client_instance[table_path[0]][table_path[1]]
-    #     result = collection_instance.find_one({"_id": id_})
+    #     result = collection_instance.find_one({"_id": _id})
     #     self.__db_instance.disconnect()
     #     return result
 
@@ -134,22 +134,22 @@ class DBAction(Action):
         finally:
             self.__db_instance.disconnect()
 
-    def push_files(self, id_: ObjectId, filelist: list, site: dict = None, relative: bool = True,
+    def push_files(self, _id: ObjectId, filelist: list, site: dict = None, relative: bool = True,
                    subdirs: list = None, dryrun: bool = False):
-        assert id_ in self.result_ids, "you can only push files related to you!"
+        assert _id in self.result_ids, "you can only push files related to you!"
         filetransfer_instance = FileTransfer()
         self.__db_instance.connect()
         try:
             collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
             # make sure we don't push files after record is constructed.
-            assert collection_instance.find_one({"_id": id_}) is None, "only push files before inserting the record!"
+            assert collection_instance.find_one({"_id": _id}) is None, "only push files before inserting the record!"
             for x in filelist:
                 assert (not os.path.isabs(x))
-            # push file under {prefix}/self.table_path[0]/self.table_path[1]/id_.
+            # push file under {prefix}/self.table_path[0]/self.table_path[1]/_id.
             # {prefix}/self.table_path[0]/self.table_path[1] must have been created beforehand, since rsync can only
             # create one level of folders.
             ret = filetransfer_instance.push(filelist=filelist, dest_site=site, relative=relative, subdirs=subdirs,
-                                             dest_append_prefix=list(self.table_path + (str(id_),)),
+                                             dest_append_prefix=list(self.table_path + (str(_id),)),
                                              dryrun=dryrun)
         finally:
             self.__db_instance.disconnect()
@@ -188,7 +188,7 @@ class DBAction(Action):
         """  internal method to completely remove a record.
 
         :param collection_instance:
-        :param id_:
+        :param record:
         :return:
         """
         assert collection_instance.find_one({"_id": record['_id']}) is not None
@@ -196,18 +196,18 @@ class DBAction(Action):
         collection_instance.delete_one({"_id": record['_id']})
         assert collection_instance.find_one({"_id": record['_id']}) is None
 
-    def remove_files(self, id_, site_list) -> None:
-        """ remove the files associated with one ``id_`` in this collection, over many sites.
+    def remove_files(self, _id, site_list) -> None:
+        """ remove the files associated with one ``_id`` in this collection, over many sites.
 
         By design, I assumed that you upload your files in the form of
-        ``prefix/table_path[0]/table_path[1]/id_``.
+        ``prefix/table_path[0]/table_path[1]/str(_id)``.
 
         if prefix is not supplied, then I assume that you want to delete these files with the standard prefix
         defined in db.config.
 
         So I will simply check
 
-        :param id_: _id field of the record.
+        :param _id: _id field of the record.
         :param site_list: which site's file to remove?
         :return: None if everything is fine; otherwise throws errors.
         """
@@ -217,7 +217,7 @@ class DBAction(Action):
         if len(site_list) == 0:
             return
         filetransfer = FileTransfer()
-        correct_append_prefix = util.joinpath_norm(*(self.table_path + (str(id_),)))
+        correct_append_prefix = util.joinpath_norm(*(self.table_path + (str(_id),)))
         for site in site_list:
             assert site['append_prefix'] == correct_append_prefix
             filetransfer.remove_dir(site)
@@ -252,24 +252,24 @@ class DBAction(Action):
         self.__db_instance.connect()
         try:
             collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
-            for id_ in self.result_ids:
-                record = collection_instance.find_one({"_id": id_})
+            for _id in self.result_ids:
+                record = collection_instance.find_one({"_id": _id})
                 if record is not None:
                     self.remove_one_record(collection_instance, record)
         finally:
             self.__db_instance.disconnect()
         print("done clearing!")
 
-    def is_inserted_one(self, id_):
+    def is_inserted_one(self, _id):
         """ this can be used to help a partially executed operation to identify which results need insertion.
 
-        :param id_:
+        :param _id:
         :return:
         """
         self.__db_instance.connect()
         try:
             collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
-            if collection_instance.find_one({"_id": id_}) is None:
+            if collection_instance.find_one({"_id": _id}) is None:
                 return False
         finally:
             self.__db_instance.disconnect()
@@ -286,9 +286,9 @@ class DBAction(Action):
         try:
             self.__db_instance.connect()
             collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
-            for id_ in self.result_ids:
-                assert isinstance(id_, ObjectId)
-                if collection_instance.find_one({"_id": id_}) is None:
+            for _id in self.result_ids:
+                assert isinstance(_id, ObjectId)
+                if collection_instance.find_one({"_id": _id}) is None:
                     return False
         finally:
             self.__db_instance.disconnect()
@@ -352,8 +352,8 @@ class DBAction(Action):
         self.__db_instance.connect()
         try:
             collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
-            for id_ in post_prepare_result['result_ids']:
-                assert collection_instance.find_one({"_id": id_}) is None, "the proposed result ids exist in the DB!"
+            for _id in post_prepare_result['result_ids']:
+                assert collection_instance.find_one({"_id": _id}) is None, "the proposed result ids exist in the DB!"
         finally:
             self.__db_instance.disconnect()
 
@@ -452,6 +452,7 @@ class ManualDBActionWithSchema(DBActionWithSchema):
     @abstractmethod
     def before_insert_record(self, record):
         """ this can be used to upload files, etc.
+
         :param record:
         :return: None if nothing happens. throw exception if bad thing happens.
         """
@@ -463,6 +464,7 @@ class ManualDBActionWithSchema(DBActionWithSchema):
 
     def perform(self) -> None:
         """ this is the main function actually doing things.
+
         :return:
         """
         self.export_record_template()
@@ -488,6 +490,6 @@ class ManualDBActionWithSchema(DBActionWithSchema):
             record = self.dbschema_instance.generate_record(json.loads(f.read()))
         assert len(self.result_ids) == 1
         assert '_id' not in record
-        # insert id_
+        # insert _id
         record['_id'] = self.result_ids[0]
         return record

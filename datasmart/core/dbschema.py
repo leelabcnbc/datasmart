@@ -31,6 +31,7 @@ class DBSchema(ABC):
     @abstractmethod
     def post_process_template(self, template: str) -> str:
         """ post processing of the raw template string.
+
         :param template:
         :return:
         """

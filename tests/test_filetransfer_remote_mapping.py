@@ -202,6 +202,14 @@ def remote_push_fetch(filetransfer, filelist, local_data_dir, local_cache_dir, s
                                        dest_append_prefix=dest_append_prefix, nas_ip_address=nas_ip_address,
                                        remote_data_dir=remote_data_dir, local_fetch_option=local_fetch_option,
                                        map_fetch=False, map_push=False)
+
+        # remove dir
+        if dest_append_prefix != ['']:
+            assert os.path.exists(remote_append_dir)
+            filetransfer.remove_dir(site=ret_push['dest'])
+            time.sleep(5)
+            assert not os.path.exists(remote_append_dir)
+
     finally:
         filetransfer.set_config(config_old)
         if os.path.exists(local_data_dir):
