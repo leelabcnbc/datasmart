@@ -295,6 +295,11 @@ class FileTransfer(Base):
         # check that subdir exists.
         assert os.path.exists(savepath), "{} doesn't exist!".format(savepath)
 
+        for file in filelist:
+            assert os.path.exists(util.joinpath_norm(savepath, file)), "the file {} must exist!".format(
+                util.joinpath_norm(savepath, file)
+            )
+
         # the following is disabled, since site mapping is just a workaround for local processing.
         # get actual site
         dest_site = FileTransfer._normalize_site(dest_site)
