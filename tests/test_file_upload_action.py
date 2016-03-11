@@ -1,4 +1,4 @@
-from actions.file_upload import FileUploadAction
+from datasmart.actions.demo.file_upload import FileUploadAction
 
 if __name__ == '__main__':
     a = FileUploadAction()

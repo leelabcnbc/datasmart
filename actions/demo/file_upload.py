@@ -13,7 +13,7 @@ class FileUploadSchemaJSL(jsl.Document):
 
 
 class FileUploadSchema(DBSchema):
-    schema_path = ('actions', 'file_upload')
+    schema_path = ('actions', 'demo', 'file_upload')
 
     def get_schema(self) -> dict:
         return FileUploadSchemaJSL.get_schema()
@@ -32,7 +32,7 @@ class FileUploadSchema(DBSchema):
 
 class FileUploadAction(ManualDBActionWithSchema):
     table_path = ('demo', 'file_upload')
-    config_path = ('actions', 'file_upload')
+    config_path = ('actions', 'demo', 'file_upload')
     dbschema = FileUploadSchema
 
     def __init__(self, config=None):
@@ -66,6 +66,3 @@ class FileUploadAction(ManualDBActionWithSchema):
         record['uploaded_files']['filelist'] = ret['filelist']
         assert schemautil.validate(schemautil.FileTransferSiteAndFileListRemoteAuto.get_schema(),
                                    record['uploaded_files'])
-
-        # let's download them back to verify.
-        ret_fetch = self.fetch_fil

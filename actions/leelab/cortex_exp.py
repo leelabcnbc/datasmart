@@ -19,7 +19,7 @@ class CortexExpSchemaJSL(jsl.Document):
 
 
 class CortexExpSchema(DBSchema):
-    schema_path = ('actions', 'cortex_exp')
+    schema_path = ('actions', 'leelab', 'cortex_exp')
 
     def get_schema(self) -> dict:
         return CortexExpSchemaJSL.get_schema()
@@ -49,7 +49,7 @@ class CortexExpAction(ManualDBActionWithSchema):
         pass
 
     table_path = ('leelab_primate', 'cortex')
-    config_path = ('actions', 'cortex_exp')
+    config_path = ('actions', 'leelab', 'cortex_exp')
     dbschema = CortexExpSchema
 
     def __init__(self, config=None):
