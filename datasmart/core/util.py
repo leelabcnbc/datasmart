@@ -5,6 +5,7 @@ from datetime import datetime
 import os
 import json
 import pkgutil
+import pytz
 from .. import global_config
 
 
@@ -84,3 +85,10 @@ def load_config(module_name: tuple, filename='config.json', load_json=True):
         if load_json:
             config = json.loads(config)
     return config
+
+util_config = load_config(('core','util'), filename='config.json', load_json=True)
+local_tz = pytz.timezone(util_config['timezone'])
+
+def local_datetime(*args, **kwargs):
+    return local_tz.localize(datetime(*args, **kwargs))
+
