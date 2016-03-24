@@ -157,10 +157,16 @@ class DBAction(Action):
 
     @staticmethod
     def fetch_files(filelist: list, site: dict = None, relative: bool = True,
-                    subdirs: list = None, local_fetch_option=None, dryrun: bool = False):
+                    subdirs: list = None, local_fetch_option=None, dryrun: bool = False,
+                    strip_append_prefix=True):   # remove append prefix by default
+        if 'append_prefix' in site and strip_append_prefix:
+            strip_prefix = site['append_prefix']
+        else:
+            strip_prefix = ''
         filetransfer_instance = FileTransfer()
         ret = filetransfer_instance.fetch(filelist=filelist, src_site=site, relative=relative, subdirs=subdirs,
-                                          local_fetch_option=local_fetch_option, dryrun=dryrun)
+                                          local_fetch_option=local_fetch_option, dryrun=dryrun,
+                                          strip_prefix=strip_prefix)
         return ret
 
     @abstractmethod

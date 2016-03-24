@@ -22,7 +22,7 @@ def check_remote_push_fetch_result(ret_push, ret_fetch, filelist,
                                    local_data_dir, local_cache_dir, subdirs_push=None, subdirs_fetch=None,
                                    relative_push=True, relative_fetch=True, dest_append_prefix=None,
                                    nas_ip_address='', remote_data_dir='', local_fetch_option='copy',
-                                   map_fetch=False, map_push=False):
+                                   map_fetch=False, map_push=False, strip_append_prefix = True):
     """
     :param ret_push:
     :param ret_fetch:
@@ -33,6 +33,10 @@ def check_remote_push_fetch_result(ret_push, ret_fetch, filelist,
     :param relative:
     :return:
     """
+
+    if strip_append_prefix:
+        assert dest_append_prefix and relative_fetch
+
     if subdirs_push is None:
         subdirs_push = []
 
@@ -122,10 +126,14 @@ def check_remote_push_fetch_result(ret_push, ret_fetch, filelist,
             filename5 = filename4
 
         # 1 and 3
+
         assert filename3 == datasmart.core.util.joinpath_norm(dest_append_prefix, file if relative_push else filebase)
         # 3 and 4
         if not (local_fetch_option == 'nocopy' and map_fetch):
-            assert filename4 == filename3 if relative_fetch else os.path.basename(filename3)
+            if not strip_append_prefix:
+                assert filename4 == filename3 if relative_fetch else os.path.basename(filename3)
+            else:
+                assert filename4 == file
         else:
             assert filename4 == filename3
 
@@ -142,11 +150,13 @@ def check_remote_push_fetch_result(ret_push, ret_fetch, filelist,
 
 def remote_push_fetch(filetransfer, filelist, local_data_dir, local_cache_dir, subdirs_push=None, subdirs_fetch=None,
                       relative_push=True, relative_fetch=True, dest_append_prefix=None, nas_ip_address='',
-                      remote_data_dir='', local_fetch_option='copy', map_fetch=False, map_push=False):
+                      remote_data_dir='', local_fetch_option='copy', map_fetch=False, map_push=False,
+                      strip_append_prefix=True):
     # this is combined test of remote push and fetch.
-    # I combine them since I can't easily check the files on the server...
-    # maybe I can manually check. Well you can run things like ``ls`` on server to get back files...
-    # But that's too complicated.
+
+    if strip_append_prefix:
+        assert dest_append_prefix and relative_fetch
+
     if dest_append_prefix is None:
         dest_append_prefix = ['']
     remote_append_dir = os.path.join(local_map_dir_root, remote_data_dir, *dest_append_prefix)
@@ -184,14 +194,20 @@ def remote_push_fetch(filetransfer, filelist, local_data_dir, local_cache_dir, s
         if not map_fetch:
             filetransfer.config['site_mapping_fetch'] = []
 
+        if strip_append_prefix:
+            assert dest_append_prefix != ['']
+            strip_prefix = datasmart.core.util.joinpath_norm(*dest_append_prefix)
+        else:
+            strip_prefix = ''
+
         ret_fetch = filetransfer.fetch(
             filelist=ret_push['filelist'],
             src_site=ret_push['dest'], relative=relative_fetch, subdirs=subdirs_fetch,
-            local_fetch_option=local_fetch_option)
+            local_fetch_option=local_fetch_option, strip_prefix=strip_prefix)
         ret_fetch_1 = filetransfer.fetch(
             filelist=ret_push['filelist'],
             src_site=ret_push['dest'], relative=relative_fetch, subdirs=subdirs_fetch,
-            local_fetch_option=local_fetch_option, dryrun=True)
+            local_fetch_option=local_fetch_option, strip_prefix=strip_prefix, dryrun=True)
         assert ret_fetch == ret_fetch_1
 
         check_remote_push_fetch_result(ret_push,
@@ -201,7 +217,7 @@ def remote_push_fetch(filetransfer, filelist, local_data_dir, local_cache_dir, s
                                        relative_push=relative_push, relative_fetch=relative_fetch,
                                        dest_append_prefix=dest_append_prefix, nas_ip_address=nas_ip_address,
                                        remote_data_dir=remote_data_dir, local_fetch_option=local_fetch_option,
-                                       map_fetch=False, map_push=False)
+                                       map_fetch=False, map_push=False, strip_append_prefix=strip_append_prefix)
 
         # remove dir
         if dest_append_prefix != ['']:
@@ -285,19 +301,27 @@ def main_func():
         # test push & fetch: first add data in local_data_dir, then push, then set ``config_this['local_data_dir']``
         # to local_cache_dir, then fetch data into local_cache_dir, and then compare.
         for x in itertools.product([subdirs_push, None], [subdirs_fetch, None], [True, False], [True, False],
-                                   [dest_append_prefix, None], ['copy', 'nocopy'], [True, False], [True, False]):
+                                   [dest_append_prefix, None], ['copy', 'nocopy'], [True, False], [True, False],
+                                   [True, False]):
             subdirs_push_this, subdirs_fetch_this, relative_push_this, \
             relative_fetch_this, dest_append_prefix_this, local_fetch_option, \
-            map_push, map_fetch = x
+            map_push, map_fetch, strip_append_prefix = x
+
+            # filter out incompatible cases with strip_appendix=True.
+            if strip_append_prefix and not (dest_append_prefix_this and relative_fetch_this):
+                continue
+
             print("push rel: {}, fetch rel: {}".format(relative_push_this, relative_fetch_this))
             print("subdir push: {}, subdir fetch: {}".format(subdirs_push_this, subdirs_fetch_this))
             print("dest append: {}, local fetch: {}".format(dest_append_prefix_this, local_fetch_option))
             print("map push: {}, map fetch: {}".format(map_push, map_fetch))
+            print("strip appendix: {}".format(strip_append_prefix))
             remote_push_fetch(filetransfer, filelist, local_data_dir, local_cache_dir,
                               subdirs_push=subdirs_push_this, subdirs_fetch=subdirs_fetch_this,
                               relative_push=relative_push_this, relative_fetch=relative_fetch_this,
                               dest_append_prefix=dest_append_prefix_this, nas_ip_address=nas_ip_address,
-                              remote_data_dir=remote_data_dir, local_fetch_option=local_fetch_option)
+                              remote_data_dir=remote_data_dir, local_fetch_option=local_fetch_option,
+                              strip_appendix=strip_append_prefix)
             time.sleep(2)  # wait for a while for delete to finish.
 
         print('pass {}'.format(i))

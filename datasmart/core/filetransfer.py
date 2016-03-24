@@ -189,7 +189,7 @@ class FileTransfer(Base):
         subprocess.run(full_command, check=True, stdout=stdout_arg)
 
     def fetch(self, filelist: list, src_site: dict = None, relative: bool = False, subdirs: list = None,
-              local_fetch_option=None, dryrun: bool = False) -> dict:
+              local_fetch_option=None, dryrun: bool = False, strip_prefix = '') -> dict:
         """ fetch files from the site.
 
         it will fetch site/{prefix}/filelist{i} to
@@ -217,6 +217,10 @@ class FileTransfer(Base):
         if local_fetch_option is None:
             local_fetch_option = self.config['local_fetch_option']
         assert local_fetch_option in _LOCAL_FETCH_OPTIONS
+
+        if strip_prefix:  # if it's not empty.
+            strip_prefix = os.path.normpath(strip_prefix)
+
         # normalize the file list first.
         filelist = util.normalize_filelist_relative(filelist)
         savepath = util.joinpath_norm(self.config['local_data_dir'], self._reformat_subdirs(subdirs))
@@ -247,7 +251,8 @@ class FileTransfer(Base):
         if copy_flag:
             dest_site = FileTransfer._normalize_site({"path": savepath, "local": True})
             ret_filelist = self._transfer(src_actual_site, dest_site,
-                                          filelist, {"relative": relative, 'dryrun': dryrun})
+                                          filelist, {"relative": relative, 'dryrun': dryrun,
+                                                     'strip_prefix': strip_prefix})
         else:
             dest_site = src_actual_site
             # use actual filelist, since there's no fetch.
@@ -326,10 +331,16 @@ class FileTransfer(Base):
             Basically, ``dest['path'] + return value`` should give absolute path for files.
         """
 
-        if 'dest_append_prefix' in options:
-            dest_append_prefix = options['dest_append_prefix']
-        else:
-            dest_append_prefix = ''
+        if not 'dest_append_prefix' in options:
+            options['dest_append_prefix'] = ''
+        if not 'strip_prefix' in options:
+            options['strip_prefix'] = ''
+
+        assert not os.path.isabs(options['dest_append_prefix'])
+        assert not os.path.isabs(options['strip_prefix'])
+
+        if options['strip_prefix']:
+            assert options['relative'], "with non trivial strip prefix, must be in relative mode!"
 
         # one of them must be local.
         assert src['local'] or dest['local']
@@ -343,7 +354,8 @@ class FileTransfer(Base):
         # get the path of source and destination sites,  and get a ssh argument if necessary.
         rsync_src_spec, rsync_ssh_arg_src = self._get_rsync_site_spec(src)
         # provide an additional prefix for destination site (remote or local)
-        rsync_dest_spec, rsync_ssh_arg_dest = self._get_rsync_site_spec(dest, append_prefix=dest_append_prefix)
+        rsync_dest_spec, rsync_ssh_arg_dest = self._get_rsync_site_spec(dest,
+                                                                        append_prefix=options['dest_append_prefix'])
         # if there's any non-None ssh arg returned, there must be exactly one.
         assert (rsync_ssh_arg_src is None) or (rsync_ssh_arg_dest is None)
         if not (rsync_ssh_arg_src is None):
@@ -352,7 +364,8 @@ class FileTransfer(Base):
             rsync_ssh_arg = rsync_ssh_arg_dest
 
         # create a filelist for rsync's file-from option.
-        rsync_filelist_value, basename_list = FileTransfer._get_rsync_filelist(filelist, options)
+        # to and from can be different due to stripping prefix, and base name stuff.
+        rsync_filelist_from, rsync_filelist_to = FileTransfer._get_rsync_filelist(filelist, options)
 
         # run the actual rsync if not dryrun.
         if not options['dryrun']:
@@ -361,7 +374,7 @@ class FileTransfer(Base):
             rsync_filelist_path = rsync_filelist_handle.name
             # add '/' in front in case we have file names starting with '#' or ';'
             # see http://samba.2283325.n4.nabble.com/comments-with-in-files-from-td2510187.html
-            rsync_filelist_handle.writelines([os.sep + p + '\n' for p in rsync_filelist_value])
+            rsync_filelist_handle.writelines([os.sep + p + '\n' for p in rsync_filelist_from])
             rsync_filelist_handle.close()
             rsync_filelist_arg = "--files-from={}".format(rsync_filelist_path)
 
@@ -380,8 +393,10 @@ class FileTransfer(Base):
                 os.remove(rsync_filelist_path)
 
         # return the canonical filelist on the dest. This should be relative for local dest, and absolute for remote.
-        ret_filelist = util.normalize_filelist_relative(rsync_filelist_value if options['relative'] else basename_list,
-                                                        prefix=dest_append_prefix)
+        ret_filelist = util.normalize_filelist_relative(rsync_filelist_to, prefix=options['dest_append_prefix'])
+
+        # strip prefix.
+
         return ret_filelist
 
     def _site_mapping_push(self, site: dict) -> dict:
@@ -446,15 +461,44 @@ class FileTransfer(Base):
         :param options: options passed into transfer.
         :return: a filelist to be written into a temp file for rsync to use as first element, and baselist as second.
         """
+
+        if 'strip_prefix' in options:
+            strip_prefix = options['strip_prefix']
+        else:
+            strip_prefix = ''
+
+
         # check that filenames don't contain weird characters, and get basename list.
-        rsync_filelist_value = util.normalize_filelist_relative(filelist)
-        basename_list = [os.path.basename(p) for p in rsync_filelist_value]
+        rsync_filelist_from = util.normalize_filelist_relative(filelist)
+
+        # add strip_prefix.
+        for x in rsync_filelist_from:
+            assert x.startswith(strip_prefix)
+
+
+        if strip_prefix:  # this needs to be added when strip_prefix is not empty.
+            # +1 to ignore '/' in the beginning.
+            rsync_filelist_from_second = [x[(len(strip_prefix) + 1):] for x in rsync_filelist_from]
+            rsync_filelist_from = [strip_prefix + '/./' + x for x in rsync_filelist_from_second]
+        else:
+            rsync_filelist_from_second = rsync_filelist_from
+
+
+        # this second part is canonical
+        assert util.normalize_filelist_relative(rsync_filelist_from_second) == rsync_filelist_from_second
+        # insertion of '/./' doesn't destroy anything.
+        assert util.normalize_filelist_relative(rsync_filelist_from) == util.normalize_filelist_relative(filelist)
+
+        if not options['relative']:
+            rsync_filelist_to = [os.path.basename(p) for p in rsync_filelist_from]
+        else:
+            rsync_filelist_to = rsync_filelist_from_second
+
         # check for duplicate
         # for relative, no duplicate full path should exist
         # for non-relative, no duplicate basename should exist.
-        FileTransfer._check_duplicate(rsync_filelist_value if options['relative'] else basename_list)
-
-        return rsync_filelist_value, basename_list
+        FileTransfer._check_duplicate(rsync_filelist_to)
+        return rsync_filelist_from, rsync_filelist_to
 
     @staticmethod
     def _check_duplicate(filelist: list) -> None:
