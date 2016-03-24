@@ -3,8 +3,9 @@ from datasmart.core import util
 from datasmart.core.action import DBAction
 
 class FileDownloadAction(DBAction):
-    table_path = ('demo', 'file_download')  # this is simply for overriding, as there's no such table.
+    db_modification = False
     config_path = ('actions', 'demo', 'file_download')
+
     def __init__(self, config=None):
         super().__init__(config)
 

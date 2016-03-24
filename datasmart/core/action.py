@@ -70,6 +70,7 @@ class Action(Base):
 
 class DBAction(Action):
     table_path = (None, None)
+    db_modification = True  # whether this action would change the DB.
 
     @abstractmethod
     def __init__(self, config=None):
@@ -80,10 +81,13 @@ class DBAction(Action):
         self.__db_instance = DB()
 
         # you must define table_path as a class variable in the action.
-        assert self.table_path is not DBAction.table_path
-        assert isinstance(self.table_path, tuple)
-        assert len(self.table_path) == 2 and isinstance(self.table_path[0], str) and isinstance(
-            self.table_path[1], str)
+        if self.__class__.db_modification:
+            assert self.table_path is not DBAction.table_path
+            assert isinstance(self.table_path, tuple)
+            assert len(self.table_path) == 2 and isinstance(self.table_path[0], str) and isinstance(
+                self.table_path[1], str)
+        else:
+            assert self.table_path is DBAction.table_path, "you don't modify table_path for non-modifying action"
 
         # initialize __prepare_result, __result_ids, if it's already prepared
         self.__prepare_result = None
@@ -365,13 +369,14 @@ class DBAction(Action):
 
         # check that results are not found.
         assert isinstance(post_prepare_result['result_ids'], list)
-        self.__db_instance.connect()
-        try:
-            collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
-            for _id in post_prepare_result['result_ids']:
-                assert collection_instance.find_one({"_id": _id}) is None, "the proposed result ids exist in the DB!"
-        finally:
-            self.__db_instance.disconnect()
+        if post_prepare_result['result_ids']:
+            self.__db_instance.connect()
+            try:
+                collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
+                for _id in post_prepare_result['result_ids']:
+                    assert collection_instance.find_one({"_id": _id}) is None, "the proposed result ids exist in the DB!"
+            finally:
+                self.__db_instance.disconnect()
 
         self.__result_ids = post_prepare_result['result_ids']
         self.__prepare_result = post_prepare_result
