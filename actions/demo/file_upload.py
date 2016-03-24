@@ -43,7 +43,7 @@ class FileUploadAction(ManualDBActionWithSchema):
 
     def custom_info(self) -> str:
         return "this is the class for upload files, please put all data you want under {}!".format(
-            util.joinpath_norm(self.get_file_transfer_config()['local_data_dir'])
+            self.get_file_transfer_config()['local_data_dir']
         )
 
     def get_schema_config(self):

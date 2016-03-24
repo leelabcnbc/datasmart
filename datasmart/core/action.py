@@ -88,9 +88,11 @@ class DBAction(Action):
         # initialize __prepare_result, __result_ids, if it's already prepared
         self.__prepare_result = None
         self.__result_ids = None
+        self.force_finished = False  # useful for some Action without any __result_ids ([]) to make them finishable.
         self.is_prepared()
 
-    def get_file_transfer_config(self):
+    @staticmethod
+    def get_file_transfer_config():
         return FileTransfer().config
 
     def get_prepare_path(self):
@@ -158,7 +160,8 @@ class DBAction(Action):
     @staticmethod
     def fetch_files(filelist: list, site: dict = None, relative: bool = True,
                     subdirs: list = None, local_fetch_option=None, dryrun: bool = False,
-                    strip_append_prefix=True):   # remove append prefix by default
+                    strip_append_prefix=True):  # remove strip prefix de
+
         if 'append_prefix' in site and strip_append_prefix:
             strip_prefix = site['append_prefix']
         else:
@@ -285,10 +288,17 @@ class DBAction(Action):
         """ simply check that each result id is in the table
         :return:
         """
+        if self.force_finished:
+            return True
+
         if self.result_ids is None:
             return False
 
         assert isinstance(self.result_ids, list)
+
+        if not self.result_ids:  # empty list, always false, use force_finished to escape.
+            return False
+
         try:
             self.__db_instance.connect()
             collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
