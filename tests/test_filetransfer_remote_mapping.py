@@ -133,7 +133,7 @@ def check_remote_push_fetch_result(ret_push, ret_fetch, filelist,
             if not strip_append_prefix:
                 assert filename4 == filename3 if relative_fetch else os.path.basename(filename3)
             else:
-                assert filename4 == file
+                assert filename4 == file if relative_push else os.path.basename(filename3)
         else:
             assert filename4 == filename3
 
@@ -321,7 +321,7 @@ def main_func():
                               relative_push=relative_push_this, relative_fetch=relative_fetch_this,
                               dest_append_prefix=dest_append_prefix_this, nas_ip_address=nas_ip_address,
                               remote_data_dir=remote_data_dir, local_fetch_option=local_fetch_option,
-                              strip_appendix=strip_append_prefix)
+                              strip_append_prefix=strip_append_prefix)
             time.sleep(2)  # wait for a while for delete to finish.
 
         print('pass {}'.format(i))
