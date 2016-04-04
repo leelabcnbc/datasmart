@@ -499,11 +499,13 @@ class ManualDBActionWithSchema(DBActionWithSchema):
 
     def export_record_template(self):
         savepath = util.joinpath_norm(self.global_config['project_root'], self.config['savepath'])
+
         if os.path.exists(savepath):
             print("file exists! I don't want to overwrite it, and I assume that file is your template.")
         else:
+            template_text = self.dbschema_instance.get_template()
             with open(savepath, 'wt') as f:
-                f.write(self.dbschema_instance.get_template())
+                f.write(template_text)
         print('template document created at {}'.format(savepath))
 
     def import_record_template(self):

@@ -29,32 +29,6 @@
     }
   ],
   "site_mapping_fetch": [
-    {
-      "from":
-      {
-        "path": "raptor.cnbc.cmu.edu",
-        "prefix": "/opt/data/home/leelab",
-        "local": false
-      },
-      "to":
-      {
-        "path": "raptor_data",
-        "local": true
-      }
-    },
-    {
-      "from":
-      {
-        "path": "yimengzh.cnbc.cmu.edu",
-        "local": false,
-        "prefix": "/home/yimengzh_everyday/datajoin_data"
-      },
-      "to":
-      {
-        "path": "leelab_gpu_data",
-        "local": true
-      }
-    }
   ],
   "remote_site_config": {
     "raptor.cnbc.cmu.edu": {

@@ -15,6 +15,7 @@ Contents:
    modules/core/action
    modules/core/dbschema
    modules/core/filetransfer
+   modules/actions/leelab/cortex_exp
 
 
 Core Modules

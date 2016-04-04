@@ -20,15 +20,17 @@ def get_schema_string(schema):
 
 
 class SchemaUtilPatterns:
-    gitHashPattern = "^[0-9a-f]{40}$"  # only allow lowercase to be more strict.
+    sha1Pattern = "^[0-9a-f]{40}$"  # only allow lowercase to be more strict.
     absPathPattern = '(^(/[^/]+)+$)|(^/$)'
     relativePathPattern = '^([^/]+)(/[^/]+)*$'
     absOrRelativePathPattern = '(' + absPathPattern + ')' + '|' + '(' + relativePathPattern + ')'
     absOrRelativePathPatternOrEmpty = '(' + absPathPattern + ')' + '|' + '(' + relativePathPattern + ')' + '|(^$)'
+    strictFilenameLowerPattern = lambda ext: "^[0-9a-z_\\-]+\\.{}$".format(ext)
+
 
 class GitRepoRef(jsl.Document):
     repo_url = jsl.StringField(format="uri", required=True)
-    repo_hash = jsl.StringField(pattern=SchemaUtilPatterns.gitHashPattern, required=True)
+    repo_hash = jsl.StringField(pattern=SchemaUtilPatterns.sha1Pattern, required=True)
 
 
 class FileTransferSiteRemote(jsl.Document):
