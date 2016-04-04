@@ -189,7 +189,7 @@ class FileTransfer(Base):
         subprocess.run(full_command, check=True, stdout=stdout_arg)
 
     def fetch(self, filelist: list, src_site: dict = None, relative: bool = False, subdirs: list = None,
-              local_fetch_option=None, dryrun: bool = False, strip_prefix = '') -> dict:
+              local_fetch_option=None, dryrun: bool = False, strip_prefix='') -> dict:
         """ fetch files from the site.
 
         it will fetch site/{prefix}/filelist{i} to
@@ -368,29 +368,34 @@ class FileTransfer(Base):
         rsync_filelist_from, rsync_filelist_to = FileTransfer._get_rsync_filelist(filelist, options)
 
         # run the actual rsync if not dryrun.
-        if not options['dryrun']:
-            # create temp file for rsync_filelist_value.
-            rsync_filelist_handle = tempfile.NamedTemporaryFile(mode='wt', delete=False)
-            rsync_filelist_path = rsync_filelist_handle.name
-            # add '/' in front in case we have file names starting with '#' or ';'
-            # see http://samba.2283325.n4.nabble.com/comments-with-in-files-from-td2510187.html
-            rsync_filelist_handle.writelines([os.sep + p + '\n' for p in rsync_filelist_from])
-            rsync_filelist_handle.close()
-            rsync_filelist_arg = "--files-from={}".format(rsync_filelist_path)
+        if options['dryrun']:
+            rsync_dryrun_arg = ['--dry-run']
+        else:
+            rsync_dryrun_arg = []
 
-            # get the full rsync command.
-            rsync_command = ["rsync", "-azvP",
-                             rsync_relative_arg] + rsync_ssh_arg + [rsync_filelist_arg, rsync_src_spec, rsync_dest_spec]
+        # create temp file for rsync_filelist_value.
+        rsync_filelist_handle = tempfile.NamedTemporaryFile(mode='wt', delete=False)
+        rsync_filelist_path = rsync_filelist_handle.name
+        # add '/' in front in case we have file names starting with '#' or ';'
+        # see http://samba.2283325.n4.nabble.com/comments-with-in-files-from-td2510187.html
+        rsync_filelist_handle.writelines([os.sep + p + '\n' for p in rsync_filelist_from])
+        rsync_filelist_handle.close()
+        rsync_filelist_arg = "--files-from={}".format(rsync_filelist_path)
 
-            # print the rsync command. this printed one may not work if you directly copy it, since special characters,
-            # like spaces are not quoted properly.
-            print(" ".join(rsync_command))
-            stdout_arg = subprocess.PIPE if self.config['quiet'] else None
-            try:
-                subprocess.run(rsync_command, check=True, stdout=stdout_arg)  # if not return 0, if fails.
-            finally:
-                # delete the filelist no matter what happens.
-                os.remove(rsync_filelist_path)
+        # get the full rsync command.
+        rsync_command = ["rsync", "-azvP",
+                         rsync_relative_arg] + rsync_dryrun_arg + rsync_ssh_arg + [rsync_filelist_arg, rsync_src_spec,
+                                                                                   rsync_dest_spec]
+
+        # print the rsync command. this printed one may not work if you directly copy it, since special characters,
+        # like spaces are not quoted properly.
+        print(" ".join(rsync_command))
+        stdout_arg = subprocess.PIPE if self.config['quiet'] else None
+        try:
+            subprocess.run(rsync_command, check=True, stdout=stdout_arg)  # if not return 0, if fails.
+        finally:
+            # delete the filelist no matter what happens.
+            os.remove(rsync_filelist_path)
 
         # return the canonical filelist on the dest. This should be relative for local dest, and absolute for remote.
         ret_filelist = util.normalize_filelist_relative(rsync_filelist_to, prefix=options['dest_append_prefix'])
@@ -467,7 +472,6 @@ class FileTransfer(Base):
         else:
             strip_prefix = ''
 
-
         # check that filenames don't contain weird characters, and get basename list.
         rsync_filelist_from = util.normalize_filelist_relative(filelist)
 
@@ -475,14 +479,12 @@ class FileTransfer(Base):
         for x in rsync_filelist_from:
             assert x.startswith(strip_prefix)
 
-
         if strip_prefix:  # this needs to be added when strip_prefix is not empty.
             # +1 to ignore '/' in the beginning.
             rsync_filelist_from_second = [x[(len(strip_prefix) + 1):] for x in rsync_filelist_from]
             rsync_filelist_from = [strip_prefix + '/./' + x for x in rsync_filelist_from_second]
         else:
             rsync_filelist_from_second = rsync_filelist_from
-
 
         # this second part is canonical
         assert util.normalize_filelist_relative(rsync_filelist_from_second) == rsync_filelist_from_second
