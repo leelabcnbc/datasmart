@@ -72,14 +72,24 @@ def load_config(module_name: tuple, filename='config.json', load_json=True):
     """
     path_list = (global_config['project_root'], 'config') + module_name + (filename,)
     config_path = os.path.join(*path_list)
+    path_list_global = (os.path.expanduser('~'), '.datasmart', 'config') + module_name + (filename,)
+    config_path_global = os.path.join(*path_list_global)
     if os.path.exists(config_path):
+        # step 1. load config in current project.
         with open(config_path, 'rt') as config_stream:
             if load_json:
                 config = json.load(config_stream)
             else:
                 config = config_stream.read()
+    elif os.path.exists(config_path_global):
+        # step 2. load config in ~/.datasmart
+        with open(config_path_global, 'rt') as config_stream:
+            if load_json:
+                config = json.load(config_stream)
+            else:
+                config = config_stream.read()
     else:
-        # step 2. load default config
+        # step 3. load default config
         config = pkgutil.get_data(
             global_config['root_package_spec'] + '.config.' + '.'.join(module_name), filename).decode()
         if load_json:
