@@ -164,7 +164,7 @@ class CortexExpSortedAction(DBActionWithSchema):
         record['sort_config']['spikesort_script'] = spikesort_script
         record['sort_config']['master_script'] = main_script
 
-        print("now {} sorted NEV files will be uploaded")
+        print("now {} sorted NEV files will be uploaded".format(len(filelist_local)))
         ret_2 = self.push_files(insert_id, filelist_local, relative=False)
         record['sorted_files']['site'] = ret_2['dest']
         record['sorted_files']['filelist'] = ret_2['filelist']
