@@ -347,6 +347,11 @@ class DBAction(Action):
         if os.path.exists(self.__prepare_result_path):
             prepare_result = pickle.load(open(self.__prepare_result_path, 'rb'))
             assert 'result_ids' in prepare_result, "the pickled result looked bad!"
+            assert prepare_result['_class_name_'] == self.__class__.__qualname__, \
+                "clean up 'prepare_result.p' and 'query_template.py', " \
+                "and possibly also 'template.json' under this directory, " \
+                "as they are for a different action"
+            del prepare_result['_class_name_']
             self.__prepare_result = prepare_result
             self.__result_ids = prepare_result['result_ids']
             return True
@@ -390,13 +395,15 @@ class DBAction(Action):
             try:
                 collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
                 for _id in post_prepare_result['result_ids']:
-                    assert collection_instance.find_one(
-                        {"_id": _id}) is None, "the proposed result ids exist in the DB!"
+                    assert collection_instance.count({"_id": _id}) == 0, "the proposed result ids exist in the DB!"
             finally:
                 self.__db_instance.disconnect()
 
         self.__result_ids = post_prepare_result['result_ids']
         self.__prepare_result = post_prepare_result
+        assert '_class_name_' not in post_prepare_result, "don't include _class_name_ in your prepare result!"
+        post_prepare_result['_class_name_'] = self.__class__.__qualname__
+        print(self.__class__.__qualname__)
 
         pickle.dump(post_prepare_result, open(self.__prepare_result_path, 'wb'))
 

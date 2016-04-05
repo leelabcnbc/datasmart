@@ -141,14 +141,9 @@ class CortexExpAction(ManualDBActionWithSchema):
 
     @staticmethod
     def normalize_config(config: dict) -> dict:
-        cortex_expt_repo_url = subprocess.check_output(['git', 'ls-remote', '--get-url', 'origin'],
-                                                       cwd=config['cortex_expt_repo_path']).decode().strip()
-        cortex_expt_repo_hash = subprocess.check_output(['git', 'rev-parse', '--verify', 'HEAD'],
-                                                        cwd=config['cortex_expt_repo_path']).decode().strip()
-        git_status_output = subprocess.check_output(['git', 'status', '--porcelain'],
-                                                    cwd=config['cortex_expt_repo_path']).decode().strip()
-        assert not git_status_output, "the repository must be clean!"
-
+        cortex_expt_repo_url = util.get_git_repo_url(config['cortex_expt_repo_path'])
+        cortex_expt_repo_hash = util.get_git_repo_hash(config['cortex_expt_repo_path'])
+        util.check_git_repo_clean(config['cortex_expt_repo_path'])
         return {
             'cortex_expt_repo_url': cortex_expt_repo_url,
             'cortex_expt_repo_hash': cortex_expt_repo_hash,

@@ -7,7 +7,7 @@ import json
 import pkgutil
 import pytz
 from .. import global_config
-
+import subprocess
 
 
 # removed for compatibility with readthedocs.
@@ -39,7 +39,7 @@ def normalize_filelist_relative(filelist: list, prefix='') -> list:
     :param prefix: an optional preffix
     :return: same file list, with paths normalized.
     """
-    assert len(filelist)>0
+    assert len(filelist) > 0
 
     ret_filelist = [joinpath_norm(prefix, os.path.normpath(p)) for p in filelist]
     for p in ret_filelist:
@@ -97,9 +97,30 @@ def load_config(module_name: tuple, filename='config.json', load_json=True):
             config = json.loads(config)
     return config
 
-util_config = load_config(('core','util'), filename='config.json', load_json=True)
+
+util_config = load_config(('core', 'util'), filename='config.json', load_json=True)
 local_tz = pytz.timezone(util_config['timezone'])
+
 
 def local_datetime(*args, **kwargs):
     return local_tz.localize(datetime(*args, **kwargs))
 
+
+def get_git_repo_url(repopath):
+    return subprocess.check_output(['git', 'ls-remote', '--get-url', 'origin'],
+                                   cwd=repopath).decode().strip()
+
+
+def get_git_repo_hash(repopath):
+    return subprocess.check_output(['git', 'rev-parse', '--verify', 'HEAD'],
+                                   cwd=repopath).decode().strip()
+
+
+def check_git_repo_clean(repopath):
+    git_status_output = subprocess.check_output(['git', 'status', '--porcelain'],
+                                                cwd=repopath).decode().strip()
+    assert not git_status_output, "the repository must be clean!"
+
+# config['cortex_expt_repo_path']
+#     cortex_expt_repo_url =
+#

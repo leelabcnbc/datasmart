@@ -10,6 +10,8 @@ from bson import ObjectId
 from collections import OrderedDict
 import json
 from copy import deepcopy
+import shutil
+import os.path
 
 sort_methods = ['sacbatch_and_spikesort']
 
@@ -20,6 +22,7 @@ class CortexExpSortedQueryResultSchemaJSL(jsl.Document):
 
 
 class CortexExpSortedSchemaJSL(jsl.Document):
+    schema_revision = jsl.IntField(enum=[1], required=True)  # the version of schema, in case we have drastic change
     cortex_exp_ref = jsl.StringField(format=schemautil.StringPatterns.bsonObjectIdPattern, required=True)
     files_to_sort = jsl.DocumentField(schemautil.filetransfer.FileTransferSiteAndFileListRemote, required=True)
     sorted_files = jsl.DocumentField(schemautil.filetransfer.FileTransferSiteAndFileListRemoteAuto, required=True)
@@ -67,11 +70,11 @@ class CortexExpSortedAction(DBActionWithSchema):
         self.insert_results([record_candidate])
         print("done!")
 
-
     def generate_init_record(self, sort_choice):
         sorted_files = deepcopy(self.prepare_result['files_to_sort'])
         sorted_files['site']['append_prefix'] = '.'
         record = OrderedDict([
+            ('schema_revision', 1),
             ('cortex_exp_ref', self.prepare_result['cortex_exp_ref']),
             ('files_to_sort', self.prepare_result['files_to_sort']),
             ('sorted_files', sorted_files),
@@ -104,23 +107,65 @@ class CortexExpSortedAction(DBActionWithSchema):
         ret = self.fetch_files(record['files_to_sort']['filelist'], record['files_to_sort']['site'],
                                relative=False, local_fetch_option='copy')
         filelist_local = ret['filelist']
+        local_dir = ret['dest']['path']
+        for file in filelist_local:
+            assert os.path.basename(file) == file
+
+        filelist_cell = ["'"+file+"'" for file in filelist_local]
+        filelist_cell = "{" + ",".join(filelist_cell) + "}"
+        print(filelist_cell)
+        input()
+
+        sacbatch_script = util.load_config(self.__class__.config_path, 'sacbatch_script.m', load_json=False)
+        spikesort_script = util.load_config(self.__class__.config_path, 'spikesort_script.m', load_json=False)
+
+        sacbatch_script = sacbatch_script.format(filelist_cell)
+        spikesort_script = spikesort_script.format(filelist_cell)
+
+        main_script = util.load_config(self.__class__.config_path, 'sacbatch_and_spikesort_script.sh', load_json=False)
+
+        with open(os.path.join(local_dir, 'sacbatch_script.m'), 'wt') as f:
+            f.write(sacbatch_script)
+        with open(os.path.join(local_dir, 'spikesort_script.m'), 'wt') as f:
+            f.write(spikesort_script)
+        with open(os.path.join(local_dir, 'sacbatch_and_spikesort_script.sh'), 'wt') as f:
+            f.write(main_script)
+
+        # copy files
+        sacbatch_file = util.joinpath_norm('SAC_batch_summer.tar.gz')
+        spikesort_file = util.joinpath_norm('spikesort.tar.gz')
+
+        shutil.copyfile(os.path.join(self.config['spike_sorting_software_repo_path'],sacbatch_file),
+                        os.path.join(local_dir,'SAC_batch.tar.gz'))
+        shutil.copyfile(os.path.join(self.config['spike_sorting_software_repo_path'], spikesort_file),
+                        os.path.join(local_dir, 'spikesort.tar.gz'))
 
 
 
         # now time to write a script for sac batch.
         prompt_text = "SAC script {} and SpikeSort script {} are in {}, run them outside and then press enter".format(
-            "sac_{}.m".format(str(insert_id)), "spikesort_{}.m".format(str(insert_id)),
-            self.get_file_transfer_config()['local_data_dir']
+            "sacbatch_script.m", "spikesort_script.m", self.get_file_transfer_config()['local_data_dir']
         )
-        #TODO insert the raw script for SAC and SpikeSort into
+
         input(prompt_text)
         input("press again if you are really sure you are finished.")
+
+        # then collect info
+        with open(os.path.join(local_dir, 'system_info'), 'rt') as f:
+            system_info = f.read()
+        with open(os.path.join(local_dir, 'sacbatch_output'), 'rt') as f:
+            sacbatch_output = f.read()
+        record['sort_config']['system_info'] = system_info
+        record['sort_config']['sacbatch_output'] = sacbatch_output
+        record['sort_config']['action_config'] = self.config
+        record['sort_config']['sacbatch_file'] = sacbatch_file
+        record['sort_config']['spikesort_file'] = spikesort_file
+
         print("now {} sorted NEV files will be uploaded")
         ret_2 = self.push_files(insert_id, filelist_local, relative=False)
         record['sorted_files']['site'] = ret_2['dest']
         record['sorted_files']['filelist'] = ret_2['filelist']
         return record
-
 
     def get_schema_config(self):
         pass
@@ -154,3 +199,16 @@ class CortexExpSortedAction(DBActionWithSchema):
         return {'result_ids': [ObjectId()],
                 'files_to_sort': query_result['recorded_files'],
                 'cortex_exp_ref': str(query_result['_id'])}
+
+    @staticmethod
+    def normalize_config(config: dict) -> dict:
+        spike_sorting_software_repo_path = config['spike_sorting_software_repo_path']
+        spike_sorting_software_repo_url = util.get_git_repo_url(spike_sorting_software_repo_path)
+        spike_sorting_software_repo_hash = util.get_git_repo_hash(spike_sorting_software_repo_path)
+        util.check_git_repo_clean(spike_sorting_software_repo_path)
+        return {
+            'spike_sorting_software_repo_url': spike_sorting_software_repo_url,
+            'spike_sorting_software_repo_hash': spike_sorting_software_repo_hash,
+            'spike_sorting_software_repo_path': spike_sorting_software_repo_path,
+            'savepath': config['savepath']
+        }
