@@ -81,6 +81,9 @@ class FileTransfer(Base):
         # os.path.join to see why.
         config['local_data_dir'] = util.joinpath_norm(global_config['project_root'], config['local_data_dir'])
 
+        if not os.path.exists(config['local_data_dir']):
+            os.makedirs(config['local_data_dir'], exist_ok=True)
+
         # normalize site mapping.
         config['site_mapping_push'] = FileTransfer.normalize_site_mapping(config['site_mapping_push'])
         config['site_mapping_fetch'] = FileTransfer.normalize_site_mapping(config['site_mapping_fetch'])

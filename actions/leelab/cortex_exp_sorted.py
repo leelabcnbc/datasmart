@@ -12,9 +12,10 @@ import json
 from copy import deepcopy
 import shutil
 import os.path
+import stat
 
 sort_methods = ['sacbatch_and_spikesort']
-
+sort_people = ["Ge Huang"]
 
 class CortexExpSortedQueryResultSchemaJSL(jsl.Document):
     cortex_exp_ref = jsl.StringField(pattern=schemautil.StringPatterns.bsonObjectIdPattern, required=True)
@@ -28,7 +29,7 @@ class CortexExpSortedSchemaJSL(jsl.Document):
     sorted_files = jsl.DocumentField(schemautil.filetransfer.FileTransferSiteAndFileListRemoteAuto, required=True)
     sort_method = jsl.StringField(enum=sort_methods, required=True)
     sort_config = jsl.DictField(required=True)  # arbitrary dict to save the parameters for this sort.
-    sort_person = jsl.StringField(enum=["Ge Huang", ], required=True)  # who sorted.
+    sort_person = jsl.StringField(enum=sort_people, required=True)  # who sorted.
     timestamp = jsl.StringField(format="date-time", required=True)
     notes = jsl.StringField(required=True)
 
@@ -128,8 +129,12 @@ class CortexExpSortedAction(DBActionWithSchema):
             f.write(sacbatch_script)
         with open(os.path.join(local_dir, 'spikesort_script.m'), 'wt') as f:
             f.write(spikesort_script)
-        with open(os.path.join(local_dir, 'sacbatch_and_spikesort_script.sh'), 'wt') as f:
+
+        main_script_local = os.path.join(local_dir, 'sacbatch_and_spikesort_script.sh')
+        with open(main_script_local, 'wt') as f:
             f.write(main_script)
+        # add executable bit to the file.
+        os.chmod(main_script_local, stat.S_IEXEC | os.stat(main_script_local).st_mode)
 
         # copy files
         sacbatch_file = util.joinpath_norm('SAC_batch_summer.tar.gz')

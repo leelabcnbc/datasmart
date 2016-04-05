@@ -5,19 +5,14 @@ import shutil
 import os
 import stat
 import sys
-import datasmart.core.util as util
 
 
 def main(install_folder, actions):
     current_dir = sys.path[0]
     assert os.path.isabs(current_dir)
-    file_tranfer_config = util.load_config(('core','filetransfer'))
-    local_data_dir = file_tranfer_config['local_data_dir']
-    assert not os.path.isabs(local_data_dir), "local data directory must be relative!"
     assert not os.path.exists(install_folder), 'the installation folder must not exist!'
     os.makedirs(install_folder)
     os.makedirs(os.path.join(install_folder, 'config', 'actions'))
-    os.makedirs(os.path.join(install_folder, local_data_dir))
     assert os.path.exists(install_folder)
     for action in actions:
         action_file = os.path.join(current_dir, 'datasmart', 'actions', action) + '.py'
@@ -33,14 +28,14 @@ def main(install_folder, actions):
         action_config_dir_new = os.path.join(install_folder, 'config', 'actions', action)
         assert os.path.isdir(action_config_dir), "action config dir doesn't exist! should be a bug"
         os.makedirs(os.path.split(action_config_dir_new)[0], exist_ok=True)
-        shutil.copytree(action_config_dir, action_config_dir_new, ignore=lambda p, f: ['__pycache__', '__init__.py'])
+        shutil.copytree(action_config_dir, action_config_dir_new, ignore=lambda p, _: ['__pycache__', '__init__.py'])
 
         # copy the demo script to action_flat_name
         action_script_file = os.path.join(current_dir, 'demo_scripts', 'actions', action) + '.py'
         shutil.copyfile(action_script_file, os.path.join(install_folder, action_flat_name + '.py'))
         # create a bash script to start it.
         bash_script = os.path.join(install_folder, 'start_' + action_flat_name + '.sh')
-        with open(bash_script,'wt') as f:
+        with open(bash_script, 'wt') as f:
             f.write('#!/usr/bin/env bash\n')
             f.write('. activate datasmart\n')
             f.write('export PYTHONPATH={}:PYTHONPATH\n'.format(current_dir))

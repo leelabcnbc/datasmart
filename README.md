@@ -13,9 +13,24 @@ This project is under heavy development...
    I assume that `PATH` for `conda`-related programs (`conda`, `activate`, etc.) are set properly.
 2. Git clone the whole repository, say under `~/datasmart`.
 3. In the root directory of the repository, run `./install_python_env.sh`
-4. Set `PYTHONPATH` to include the root directory of the repository somehow, say in `.profile`.
 
 Certainly, if you are an experienced Python user, you can replicate the above steps without `conda`.
+
+## Install configurations
+
+The scripts mentioned in this section requires Python 3.5+ to run (not necessarily the python in `datasmart` conda environment).
+
+In the repository directory, run `./install_config_core.py` to install core configurations. Usually, the configuration for `filetransfer` and `db` should be modified.
+
+Then, for individual actions, run `./install_action.py` to install them into separate folders. By install, I mean copying a set of configurations for those actions.
+
+For example, to install CORTEX related actions into `~/Documents/datasmart-cortex`, run `./install_action.py ~/Documents/datasmart-cortex leelab/cortex_exp leelab/cortex_exp_sorted`
+
+The syntax for `install_action.py` is `install_action.py [DIRECTORY] [action1] [action2] ...`
+
+After installing, please go to the `config` subdirectory to modify the default configurations as needed. 
+
+In that directory, run `start_*` scripts to start the action.
 
 ## Usage
 
