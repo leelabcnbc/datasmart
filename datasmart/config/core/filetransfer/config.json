@@ -1,32 +1,6 @@
 {
   "local_data_dir": "_data",
   "site_mapping_push": [
-    {
-      "from":
-      {
-        "path": "raptor.cnbc.cmu.edu",
-        "prefix": "/opt/data/home/leelab",
-        "local": false
-      },
-      "to":
-      {
-        "path": "/Users/yimengzh/datajoin_data",
-        "local": true
-      }
-    },
-    {
-      "from":
-      {
-        "path": "yimengzh.cnbc.cmu.edu",
-        "local": false,
-        "prefix": "/home/yimengzh_everyday/datajoin_data"
-      },
-      "to":
-      {
-        "path": "datajoin_data",
-        "local": true
-      }
-    }
   ],
   "site_mapping_fetch": [
   ],
@@ -34,15 +8,12 @@
     "raptor.cnbc.cmu.edu": {
       "ssh_username": "leelab",
       "ssh_port": 22
-    },
-    "yimengzh.cnbc.cmu.edu": {
-      "ssh_username": "yimengzh_everyday",
-      "ssh_port": 5678
     }
   },
   "default_site": {
-    "path": "/Users/yimengzh/datajoin_data",
-    "local": true
+    "path": "raptor.cnbc.cmu.edu",
+    "local": false,
+    "prefix": "/opt/data/home/leelab/datasmart_data"
   },
   "quiet": false,
   "local_fetch_option": "copy"

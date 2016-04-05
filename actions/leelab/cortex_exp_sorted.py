@@ -114,7 +114,7 @@ class CortexExpSortedAction(DBActionWithSchema):
         filelist_cell = ["'"+file+"'" for file in filelist_local]
         filelist_cell = "{" + ",".join(filelist_cell) + "}"
         print(filelist_cell)
-        input()
+        input('the above files will be put into sorting. press enter to continue.')
 
         sacbatch_script = util.load_config(self.__class__.config_path, 'sacbatch_script.m', load_json=False)
         spikesort_script = util.load_config(self.__class__.config_path, 'spikesort_script.m', load_json=False)
@@ -160,6 +160,9 @@ class CortexExpSortedAction(DBActionWithSchema):
         record['sort_config']['action_config'] = self.config
         record['sort_config']['sacbatch_file'] = sacbatch_file
         record['sort_config']['spikesort_file'] = spikesort_file
+        record['sort_config']['sacbatch_script'] = sacbatch_script
+        record['sort_config']['spikesort_script'] = spikesort_script
+        record['sort_config']['master_script'] = main_script
 
         print("now {} sorted NEV files will be uploaded")
         ret_2 = self.push_files(insert_id, filelist_local, relative=False)
@@ -181,7 +184,7 @@ class CortexExpSortedAction(DBActionWithSchema):
         super().__init__(config)
 
     def sites_to_remove(self, record):
-        return record['sorted_files']['site']
+        return [record['sorted_files']['site']]
 
     def is_stale(self, record, db_instance) -> bool:
         old_record_exist = db_instance[CortexExpAction.table_path[0]][CortexExpAction.table_path[1]].count(

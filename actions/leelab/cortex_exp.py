@@ -29,7 +29,6 @@ from datasmart.core import util
 from datasmart.core.action import ManualDBActionWithSchema
 import jsl
 from datasmart.core import schemautil
-import subprocess
 import os.path
 import hashlib
 import re

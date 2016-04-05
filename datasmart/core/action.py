@@ -403,7 +403,6 @@ class DBAction(Action):
         self.__prepare_result = post_prepare_result
         assert '_class_name_' not in post_prepare_result, "don't include _class_name_ in your prepare result!"
         post_prepare_result['_class_name_'] = self.__class__.__qualname__
-        print(self.__class__.__qualname__)
 
         pickle.dump(post_prepare_result, open(self.__prepare_result_path, 'wb'))
 

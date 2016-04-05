@@ -18,8 +18,8 @@ ${MATALB_EXECUTABLE} -nodisplay -nosplash -r "ver; exit;" > system_info 2>&1
 # run sac batch
 ${MATALB_EXECUTABLE} -nodisplay -nosplash -r "sacbatch_script; exit;" 2>&1 | tee sacbatch_output
 # pause
-read -p "press enter to continue\n"
+read -p "press enter to continue"
 # run spikesort
-${MATALB_EXECUTABLE} -r "spikesort_script; exit"
+${MATALB_EXECUTABLE} -r "spikesort_script;"
 
 echo 'done'
