@@ -8,7 +8,7 @@ from datasmart.core import schemautil
 class FileUploadSchemaJSL(jsl.Document):
     schema_revision = jsl.IntField(enum=[1], required=True)  # the version of schema, in case we have drastic change
     timestamp = jsl.StringField(format="date-time", required=True)
-    uploaded_files = jsl.DocumentField(schemautil.FileTransferSiteAndFileListRemote, required=True)
+    uploaded_files = jsl.DocumentField(schemautil.filetransfer.FileTransferSiteAndFileListRemote, required=True)
     notes = jsl.StringField(required=True)
 
 
@@ -64,5 +64,5 @@ class FileUploadAction(ManualDBActionWithSchema):
         ))
         record['uploaded_files']['site'] = dest_site
         record['uploaded_files']['filelist'] = ret['filelist']
-        assert schemautil.validate(schemautil.FileTransferSiteAndFileListRemoteAuto.get_schema(),
+        assert schemautil.validate(schemautil.filetransfer.FileTransferSiteAndFileListRemoteAuto.get_schema(),
                                    record['uploaded_files'])

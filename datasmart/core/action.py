@@ -374,7 +374,8 @@ class DBAction(Action):
             try:
                 collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
                 for _id in post_prepare_result['result_ids']:
-                    assert collection_instance.find_one({"_id": _id}) is None, "the proposed result ids exist in the DB!"
+                    assert collection_instance.find_one(
+                        {"_id": _id}) is None, "the proposed result ids exist in the DB!"
             finally:
                 self.__db_instance.disconnect()
 

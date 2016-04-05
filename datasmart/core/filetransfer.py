@@ -19,8 +19,8 @@ class _SiteMappingSchema(jsl.Document):
     """
 
     # use ``name`` argument of DocumentField to overcome keyword restriction in Python.
-    _from = jsl.DocumentField(schemautil.FileTransferSiteRemote, name='from', required=True)
-    _to = jsl.DocumentField(schemautil.FileTransferSiteLocal, name='to', required=True)
+    _from = jsl.DocumentField(schemautil.filetransfer.FileTransferSiteRemote, name='from', required=True)
+    _to = jsl.DocumentField(schemautil.filetransfer.FileTransferSiteLocal, name='to', required=True)
 
 
 class _RemoteSiteConfigSchema(jsl.Document):
@@ -41,13 +41,13 @@ class FileTransferConfigSchema(jsl.Document):
     don't use mapping at all when push
     """
     # the default location of pushing / fetching files. can be either relative or absolute.
-    local_data_dir = jsl.StringField(pattern=schemautil.SchemaUtilPatterns.absOrRelativePathPatternOrEmpty,
+    local_data_dir = jsl.StringField(pattern=schemautil.StringPatterns.absOrRelativePathPatternOrEmpty,
                                      required=True)
     site_mapping_push = jsl.ArrayField(items=jsl.DocumentField(_SiteMappingSchema), unique_items=True, required=True)
     site_mapping_fetch = jsl.ArrayField(items=jsl.DocumentField(_SiteMappingSchema), unique_items=True, required=True)
     remote_site_config = jsl.DictField(additional_properties=jsl.DocumentField(_RemoteSiteConfigSchema), required=True)
-    default_site = jsl.OneOfField([jsl.DocumentField(schemautil.FileTransferSiteLocal),
-                                   jsl.DocumentField(schemautil.FileTransferSiteRemote)], required=True)
+    default_site = jsl.OneOfField([jsl.DocumentField(schemautil.filetransfer.FileTransferSiteLocal),
+                                   jsl.DocumentField(schemautil.filetransfer.FileTransferSiteRemote)], required=True)
     quiet = jsl.BooleanField(required=True)
 
     # this stuff provides a default on whether copy or not for local fetch.
@@ -165,13 +165,12 @@ class FileTransfer(Base):
         """
         # make sure that append_prefix is not trivial.
 
-
-
         append_prefix = site['append_prefix']
         assert util.joinpath_norm(append_prefix) != util.joinpath_norm('')
         stdout_arg = subprocess.PIPE if self.config['quiet'] else None
 
-        site_mapped = self._site_mapping_fetch(site)
+        # remove is conceptually a push. so use mapping for push.
+        site_mapped = self._site_mapping_push(site)
 
         if site_mapped['local']:
             rm_site_spec = util.joinpath_norm(site_mapped['path'], append_prefix)
@@ -197,6 +196,7 @@ class FileTransfer(Base):
 
         {prefix} is defined in config['site_config'] for remote sites, and empty for local site.
 
+        :param strip_prefix: strip off one part of the path for files.
         :param filelist: a list of files to be fetched from the site.
         :param src_site: the site to fetch from. default is ``_config['default_site']``
         :param relative: copy full directory structure or just last part of each file path,
@@ -305,7 +305,6 @@ class FileTransfer(Base):
                 util.joinpath_norm(savepath, file)
             )
 
-        # the following is disabled, since site mapping is just a workaround for local processing.
         # get actual site
         dest_site = FileTransfer._normalize_site(dest_site)
         dest_actual_site = self._site_mapping_push(dest_site)
@@ -331,9 +330,9 @@ class FileTransfer(Base):
             Basically, ``dest['path'] + return value`` should give absolute path for files.
         """
 
-        if not 'dest_append_prefix' in options:
+        if 'dest_append_prefix' not in options:
             options['dest_append_prefix'] = ''
-        if not 'strip_prefix' in options:
+        if 'strip_prefix' not in options:
             options['strip_prefix'] = ''
 
         assert not os.path.isabs(options['dest_append_prefix'])

@@ -2,6 +2,7 @@ from datasmart.core import schemautil
 from datasmart.core import util
 from datasmart.core.action import DBAction
 
+
 class FileDownloadAction(DBAction):
     db_modification = False
     config_path = ('actions', 'demo', 'file_download')
@@ -14,7 +15,7 @@ class FileDownloadAction(DBAction):
 
     def validate_query_result(self, result) -> bool:
         # must be a good site + file list.
-        assert schemautil.validate(schemautil.FileTransferSiteAndFileListAny.get_schema(),result)
+        assert schemautil.validate(schemautil.filetransfer.FileTransferSiteAndFileListAny.get_schema(),result)
         return True
 
     def perform(self) -> None:

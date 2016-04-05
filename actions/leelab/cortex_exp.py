@@ -38,7 +38,7 @@ class CortexExpSchemaConditionStimulusMappingJSL(jsl.Document):
     """helper class defining the json schema for condition-stimuli mapping"""
     condition_number = jsl.IntField(minimum=1, required=True)
     stimuli = jsl.ArrayField(
-        items=jsl.StringField(pattern=schemautil.SchemaUtilPatterns.strictFilenameLowerPattern('ctx')),
+        items=jsl.StringField(pattern=schemautil.StringPatterns.strictFilenameLowerPattern('ctx')),
         min_items=1, required=True)  # not necessarily unique.
 
 
@@ -49,15 +49,15 @@ class CortexExpSchemaJSL(jsl.Document):
     monkey = jsl.StringField(enum=["leo", "koko", "gabby", "frugo"], required=True)
     code_repo = jsl.DocumentField(schemautil.GitRepoRef, required=True)
     experiment_name = jsl.StringField(required=True)
-    timing_file_name = jsl.StringField(pattern=schemautil.SchemaUtilPatterns.strictFilenameLowerPattern('tm'),
+    timing_file_name = jsl.StringField(pattern=schemautil.StringPatterns.strictFilenameLowerPattern('tm'),
                                        required=True)
-    condition_file_name = jsl.StringField(pattern=schemautil.SchemaUtilPatterns.strictFilenameLowerPattern('cnd'),
+    condition_file_name = jsl.StringField(pattern=schemautil.StringPatterns.strictFilenameLowerPattern('cnd'),
                                           required=True)
-    item_file_name = jsl.StringField(pattern=schemautil.SchemaUtilPatterns.strictFilenameLowerPattern('itm'),
+    item_file_name = jsl.StringField(pattern=schemautil.StringPatterns.strictFilenameLowerPattern('itm'),
                                      required=True)
     condition_stimulus_mapping = jsl.ArrayField(items=jsl.DocumentField(CortexExpSchemaConditionStimulusMappingJSL),
                                                 min_items=1, unique_items=True, required=True)
-    recorded_files = jsl.DocumentField(schemautil.FileTransferSiteAndFileListRemote, required=True)
+    recorded_files = jsl.DocumentField(schemautil.filetransfer.FileTransferSiteAndFileListRemote, required=True)
     additional_parameters = jsl.StringField(required=True)
     notes = jsl.StringField(required=True)
 
@@ -95,6 +95,9 @@ class CortexExpSchema(DBSchema):
             assert sha1_this.lower() == sha1_this and len(sha1_this) == 40
             assert field_to_insert not in record
             record[field_to_insert] = sha1_this
+
+        # TODO check that all condition numbers are unique, and each condition has same length of ctx files.
+
 
         return record
 
