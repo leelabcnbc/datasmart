@@ -46,6 +46,7 @@ class CortexExpSortedSchema(DBSchema):
     def post_process_record(self, record=None) -> dict:
         # convert string-based timestamp to actual Python ``datetime`` object
         record['timestamp'] = util.rfc3339_to_datetime(record['timestamp'])
+        record['cortex_exp_ref'] = ObjectId(record['cortex_exp_ref'])
         return record
 
     def post_process_template(self, template: str) -> str:
