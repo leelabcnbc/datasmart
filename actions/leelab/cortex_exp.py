@@ -32,6 +32,7 @@ from datasmart.core import schemautil
 import subprocess
 import os.path
 import hashlib
+import re
 
 
 class CortexExpSchemaConditionStimulusMappingJSL(jsl.Document):
@@ -92,12 +93,15 @@ class CortexExpSchema(DBSchema):
             # load the file
             with open(file_to_check_full, 'rb') as f:
                 sha1_this = hashlib.sha1(f.read()).hexdigest()
-            assert sha1_this.lower() == sha1_this and len(sha1_this) == 40
+            assert re.fullmatch(schemautil.StringPatterns.sha1Pattern, sha1_this)
             assert field_to_insert not in record
             record[field_to_insert] = sha1_this
 
-        # TODO check that all condition numbers are unique, and each condition has same length of ctx files.
-
+        # check that all condition numbers are unique, and each condition has same length of ctx files.
+        condition_number_list = [x['condition_number'] for x in record['condition_stimulus_mapping']]
+        stimuli_num_list = [len(x['stimuli']) for x in record['condition_stimulus_mapping']]
+        assert len(set(stimuli_num_list)) == 1, 'each condition should have same number of stimuli!'
+        assert len(set(condition_number_list)) == len(condition_number_list), "condition numbers are unique!"
 
         return record
 

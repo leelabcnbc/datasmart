@@ -12,6 +12,22 @@ from .dbschema import DBSchema
 from .filetransfer import FileTransfer
 
 
+def save_wait_and_load(content, savepath, prompt_text, load_json=True, overwrite=False):
+    if os.path.exists(savepath) and not overwrite:
+        print("file exists! not overwritten.")
+    else:
+        with open(savepath, 'wt') as f:
+            f.write(content)
+    print('file created at {}'.format(savepath))
+    input(prompt_text)
+    with open(savepath, 'rt') as f:
+        content_back = f.read()
+        if load_json:
+            return json.loads(content_back)
+        else:
+            return content_back
+
+
 class Action(Base):
     @abstractmethod
     def __init__(self, config=None):
@@ -489,29 +505,21 @@ class ManualDBActionWithSchema(DBActionWithSchema):
 
         :return:
         """
-        self.export_record_template()
+
         print("custom info from this action follows.")
         print(self.custom_info())
-        input("Press Enter to continue after finish editing and saving the tempalte...")
-        record = self.import_record_template()
+        savepath = util.joinpath_norm(self.global_config['project_root'], self.config['savepath'])
+        template_text = self.dbschema_instance.get_template()
+        record = save_wait_and_load(template_text, savepath,
+                                    "Press Enter to continue after finish editing and saving the tempalte...",
+                                    load_json=True, overwrite=False)
+
+        record = self.import_record_template(record)
         self.before_insert_record(record)
         self.insert_results([record])
         print("done!")
 
-    def export_record_template(self):
-        savepath = util.joinpath_norm(self.global_config['project_root'], self.config['savepath'])
-
-        if os.path.exists(savepath):
-            print("file exists! I don't want to overwrite it, and I assume that file is your template.")
-        else:
-            template_text = self.dbschema_instance.get_template()
-            with open(savepath, 'wt') as f:
-                f.write(template_text)
-        print('template document created at {}'.format(savepath))
-
-    def import_record_template(self):
-        with open(self.config['savepath'], 'rt') as f:
-            record = self.dbschema_instance.generate_record(json.loads(f.read()))
+    def import_record_template(self, record):
         assert len(self.result_ids) == 1
         assert '_id' not in record
         # insert _id
