@@ -519,13 +519,13 @@ class ManualDBActionWithSchema(DBActionWithSchema):
         record = save_wait_and_load(template_text, savepath,
                                     "Press Enter to continue after finish editing and saving the tempalte...",
                                     load_json=True, overwrite=False)
-
         record = self.import_record_template(record)
         self.before_insert_record(record)
         self.insert_results([record])
         print("done!")
 
     def import_record_template(self, record):
+        self.dbschema_instance.generate_record(record)
         assert len(self.result_ids) == 1
         assert '_id' not in record
         # insert _id
