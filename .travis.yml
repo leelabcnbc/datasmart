@@ -1,5 +1,7 @@
 addons:
-  ssh_known_hosts: 127.0.0.1
+  ssh_known_hosts:
+    - 127.0.0.1
+    - localhost
   apt:
     packages:
     - openssh-server
@@ -13,7 +15,7 @@ os:
 # command to install dependencies
 install:
     - "mkdir -p ~/.ssh && chmod 700 ~/.ssh"
-    - "ssh-keygen -t rsa -q -P \"\""
+    - "ssh-keygen -t rsa -f ${HOME}/.ssh/id_rsa -q -P \"\""
     - "cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys"
     - "pip install -r requirements.txt"
 # command to run tests
