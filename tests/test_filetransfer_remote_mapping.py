@@ -7,16 +7,15 @@ import shutil
 import os
 import itertools
 from copy import deepcopy
-import time
-import random
+import getpass
 
 import datasmart.core.filetransfer
 import datasmart.core.util
 from datasmart.core import schemautil
 
-local_map_dir_root = "/Volumes/Multimedia/datasmart_test"
-remote_dir_root = "/share/Multimedia/datasmart_test"
-
+local_map_dir_root = os.path.join(os.path.expanduser("~"),"datasmart_test")
+remote_dir_root = os.path.join(os.path.expanduser("~"),"datasmart_test")
+os.makedirs(local_map_dir_root, exist_ok=True)
 
 def check_remote_push_fetch_result(ret_push, ret_fetch, filelist,
                                    local_data_dir, local_cache_dir, subdirs_push=None, subdirs_fetch=None,
@@ -180,7 +179,7 @@ def remote_push_fetch(filetransfer, filelist, local_data_dir, local_cache_dir, s
         filetransfer.set_config(config_temp)
 
         # wait for a while for everything to sync.
-        time.sleep(2)
+        #time.sleep(2)
 
         # do the fetch.
         os.mkdir(local_cache_dir)
@@ -223,7 +222,7 @@ def remote_push_fetch(filetransfer, filelist, local_data_dir, local_cache_dir, s
         if dest_append_prefix != ['']:
             assert os.path.exists(remote_append_dir)
             filetransfer.remove_dir(site=ret_push['dest'])
-            time.sleep(5)
+            #time.sleep(5)
             assert not os.path.exists(remote_append_dir)
 
     finally:
@@ -236,12 +235,12 @@ def remote_push_fetch(filetransfer, filelist, local_data_dir, local_cache_dir, s
             shutil.rmtree(remote_append_dir_root)
 
 
-def main_func():
+def main_func(username):
     filetransfer = datasmart.core.filetransfer.FileTransfer()
     config_default = deepcopy(filetransfer.config)
 
-    nas_ip_address = input("type in the IP address of my QNAP TS-251 NAS:")
-
+    #nas_ip_address = input("type in the IP address of my QNAP TS-251 NAS:")
+    nas_ip_address = "localhost"
     numlist = (1,5)
     for i in range(2):
         #  since only local transfer is considered,
@@ -286,7 +285,7 @@ def main_func():
         ]
         config_this['remote_site_config'] = {
             nas_ip_address: {
-                "ssh_username": "admin",
+                "ssh_username": username,
                 "ssh_port": 22
             }
         }
@@ -322,10 +321,10 @@ def main_func():
                               dest_append_prefix=dest_append_prefix_this, nas_ip_address=nas_ip_address,
                               remote_data_dir=remote_data_dir, local_fetch_option=local_fetch_option,
                               strip_append_prefix=strip_append_prefix)
-            time.sleep(2)  # wait for a while for delete to finish.
+            #time.sleep(2)  # wait for a while for delete to finish.
 
         print('pass {}'.format(i))
 
 
 if __name__ == '__main__':
-    main_func()
+    main_func(getpass.getuser())

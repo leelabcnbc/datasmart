@@ -1,3 +1,9 @@
+addons:
+  ssh_known_hosts: 127.0.0.1
+  apt:
+    packages:
+    - openssh-server
+
 language: python
 python:
   - "3.5"
@@ -5,7 +11,11 @@ os:
   - linux
 #  - osx   # remove this since travis doesn't support osx for Python 3.5
 # command to install dependencies
-install: "pip install -r requirements.txt"
+install:
+    - "mkdir -p ~/.ssh && chmod 700 ~/.ssh"
+    - "ssh-keygen -t rsa -q -P \"\""
+    - "cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys"
+    - "pip install -r requirements.txt"
 # command to run tests
 before_script: cd tests
 script: ./test_master.sh
