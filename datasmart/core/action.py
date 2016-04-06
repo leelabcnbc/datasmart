@@ -164,9 +164,7 @@ class DBAction(Action):
         try:
             collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
             # make sure we don't push files after record is constructed.
-            assert collection_instance.count({"_id": _id})==0, "only push files before inserting the record!"
-            for x in filelist:
-                assert (not os.path.isabs(x))
+            assert collection_instance.count({"_id": _id}) == 0, "only push files before inserting the record!"
             # push file under {prefix}/self.table_path[0]/self.table_path[1]/_id.
             # {prefix}/self.table_path[0]/self.table_path[1] must have been created beforehand, since rsync can only
             # create one level of folders.
