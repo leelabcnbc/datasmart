@@ -151,7 +151,7 @@ class DBAction(Action):
             for result in results:
                 assert result['_id'] in self.result_ids
                 assert isinstance(result['_id'], ObjectId)  # must be true by design.
-                assert (collection_instance.find_one({"_id": result['_id']}) is None)
+                assert collection_instance.count({"_id": result['_id']}) == 0
                 assert collection_instance.insert_one(result).acknowledged
         finally:
             self.__db_instance.disconnect()
@@ -164,7 +164,7 @@ class DBAction(Action):
         try:
             collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
             # make sure we don't push files after record is constructed.
-            assert collection_instance.find_one({"_id": _id}) is None, "only push files before inserting the record!"
+            assert collection_instance.count({"_id": _id})==0, "only push files before inserting the record!"
             for x in filelist:
                 assert (not os.path.isabs(x))
             # push file under {prefix}/self.table_path[0]/self.table_path[1]/_id.
@@ -220,10 +220,10 @@ class DBAction(Action):
         :param record:
         :return:
         """
-        assert collection_instance.find_one({"_id": record['_id']}) is not None
+        assert collection_instance.count({"_id": record['_id']}) == 1
         self.remove_files_for_one_record(record)
         collection_instance.delete_one({"_id": record['_id']})
-        assert collection_instance.find_one({"_id": record['_id']}) is None
+        assert collection_instance.count({"_id": record['_id']}) == 0
 
     def remove_files(self, _id, site_list) -> None:
         """ remove the files associated with one ``_id`` in this collection, over many sites.
@@ -298,7 +298,7 @@ class DBAction(Action):
         self.__db_instance.connect()
         try:
             collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
-            if collection_instance.find_one({"_id": _id}) is None:
+            if collection_instance.count({"_id": _id}) == 0:
                 return False
         finally:
             self.__db_instance.disconnect()
@@ -324,7 +324,7 @@ class DBAction(Action):
             collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
             for _id in self.result_ids:
                 assert isinstance(_id, ObjectId)
-                if collection_instance.find_one({"_id": _id}) is None:
+                if collection_instance.count({"_id": _id}) == 0:
                     return False
         finally:
             self.__db_instance.disconnect()
@@ -525,7 +525,7 @@ class ManualDBActionWithSchema(DBActionWithSchema):
         print("done!")
 
     def import_record_template(self, record):
-        self.dbschema_instance.generate_record(record)
+        record = self.dbschema_instance.generate_record(record)
         assert len(self.result_ids) == 1
         assert '_id' not in record
         # insert _id
