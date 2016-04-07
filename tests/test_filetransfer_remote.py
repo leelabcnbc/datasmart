@@ -14,6 +14,7 @@ remote_dir_root = None
 
 
 class TestFileTransferRemote(unittest.TestCase):
+    #@unittest.skip("too long")
     def test_all(self):
         global local_map_dir_root
         global remote_dir_root

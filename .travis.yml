@@ -19,10 +19,12 @@ install:
     - "cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys"
     - "pip install -r requirements.txt"
     - pip install coveralls
+    - pip install codecov
 # command to run tests
 before_script:
   - cd tests
   - export PYTHONPATH=$PYTHONPATH:$(pwd)/..
-script: coverage run --source=datasmart -m unittest discover
+script: coverage run --branch --source=datasmart -m unittest discover
 after_success:
-  coveralls
+  - coveralls
+  - codecov
