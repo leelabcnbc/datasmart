@@ -1,3 +1,6 @@
+services:
+  - mongodb
+
 addons:
   ssh_known_hosts:
     - 127.0.0.1
@@ -22,6 +25,7 @@ install:
     - pip install codecov
 # command to run tests
 before_script:
+  - sleep 5   # for mongo. see <https://docs.travis-ci.com/user/database-setup/#MongoDB>
   - cd tests
   - export PYTHONPATH=$PYTHONPATH:$(pwd)/..
 script: coverage run --branch --source=datasmart -m unittest discover

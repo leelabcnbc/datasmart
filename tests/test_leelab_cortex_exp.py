@@ -5,9 +5,17 @@ from test_util import MockNames
 import os
 import shutil
 from datasmart.actions.leelab.cortex_exp import CortexExpAction
+import pymongo
+from bson import ObjectId
 
 
 class LeelabCortexExpAction(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # link to pymongo
+        cls.db_client = pymongo.MongoClient()
+        cls.collection_client = cls.db_client['leelab']['cortex_exp']
+
     def setUp(self):
         self.git_url = 'http://git.example.com'
         self.git_hash = '0000000000000000000000000000000000000000'
@@ -29,12 +37,26 @@ class LeelabCortexExpAction(unittest.TestCase):
 
     def tearDown(self):
         shutil.rmtree(self.git_repo_path)
+        # drop and then reset
+        self.__class__.collection_client.drop()
+        self.__class__.collection_client = self.__class__.db_client['leelab']['cortex_exp']
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.collection_client.drop()
+        cls.db_client.close()
 
     def test_insert_wrong_stuff(self):
-        print(self.action.config)
+        wrong_types = ['missing field', 'wrong monkey',
+                       'nonexistent recording files', 'nonexistent ',
+                       'nonexistent itm', 'nonexistent cnd']
+        for wrong_type in wrong_types:
+            pass
 
     def test_insert_correct_stuff(self):
-        self.assertEqual(True, True)
+        for _ in range(100):
+            pass
+
 
     def input_mock_function(self):
         pass
