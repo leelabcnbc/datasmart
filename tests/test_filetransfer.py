@@ -10,6 +10,7 @@ import datasmart.core.filetransfer
 import datasmart.core.util
 from datasmart.core import schemautil
 import random
+import itertools
 
 
 class TestFileTransferLocal(unittest.TestCase):
@@ -39,56 +40,37 @@ class TestFileTransferLocal(unittest.TestCase):
         assert schemautil.validate(datasmart.core.filetransfer.FileTransferConfigSchema.get_schema(), config_this)
         self.filetransfer = datasmart.core.filetransfer.FileTransfer(config_this)
 
-        assert not os.path.exists(self.local_data_dir)
-        os.mkdir(self.local_data_dir)
-        assert not os.path.exists(self.default_site_path)
-        os.mkdir(self.default_site_path)
-        assert not os.path.exists(self.external_site)
-        os.mkdir(self.external_site)
+    def test_push(self):
+        for x in itertools.product([self.subdirs, None], [True, False], [self.dest_append_prefix, None]):
+            subdirs_this, relative, dest_append_prefix = x
+            with self.subTest(subdirs_this=subdirs_this, relative=relative, dest_append_prefix=dest_append_prefix):
+                self.assertFalse(os.path.exists(self.local_data_dir))
+                os.mkdir(self.local_data_dir)
+                self.assertFalse(os.path.exists(self.default_site_path))
+                os.mkdir(self.default_site_path)
 
-    def tearDown(self):
-        assert os.path.exists(self.local_data_dir)
-        shutil.rmtree(self.local_data_dir)
-        assert os.path.exists(self.default_site_path)
-        shutil.rmtree(self.default_site_path)
-        assert os.path.exists(self.external_site)
-        shutil.rmtree(self.external_site)
+                self.local_push(subdirs_this=subdirs_this, relative=relative, dest_append_prefix=dest_append_prefix)
 
-    def test_push_relative_nosubdir_a(self):
-        self.local_push(subdirs_this=None, relative=True, dest_append_prefix=self.dest_append_prefix)
+                self.assertTrue(os.path.exists(self.local_data_dir))
+                shutil.rmtree(self.local_data_dir)
+                self.assertTrue(os.path.exists(self.default_site_path))
+                shutil.rmtree(self.default_site_path)
 
-    def test_push_relative_nosubdir(self):
-        self.local_push(subdirs_this=None, relative=True, dest_append_prefix=None)
+    def test_fetch(self):
+        for x in itertools.product([self.subdirs, None], [True, False]):
+            subdirs_this, relative = x
+            with self.subTest(subdirs_this=subdirs_this, relative=relative):
+                self.assertFalse(os.path.exists(self.local_data_dir))
+                os.mkdir(self.local_data_dir)
+                self.assertFalse(os.path.exists(self.external_site))
+                os.mkdir(self.external_site)
 
-    def test_push_relative_subdir_a(self):
-        self.local_push(subdirs_this=self.subdirs, relative=True, dest_append_prefix=self.dest_append_prefix)
+                self.local_fetch(subdirs_this=subdirs_this, relative=relative)
 
-    def test_push_relative_subdir(self):
-        self.local_push(subdirs_this=self.subdirs, relative=True, dest_append_prefix=None)
-
-    def test_push_norelative_nosubdir_a(self):
-        self.local_push(subdirs_this=None, relative=False, dest_append_prefix=self.dest_append_prefix)
-
-    def test_push_norelative_nosubdir(self):
-        self.local_push(subdirs_this=None, relative=False, dest_append_prefix=None)
-
-    def test_push_norelative_subdir_a(self):
-        self.local_push(subdirs_this=self.subdirs, relative=False, dest_append_prefix=self.dest_append_prefix)
-
-    def test_push_norelative_subdir(self):
-        self.local_push(subdirs_this=self.subdirs, relative=False, dest_append_prefix=None)
-
-    def test_fetch_relative_nosubdir(self):
-        self.local_fetch(subdirs_this=None, relative=True)
-
-    def test_fetch_relative_subdir(self):
-        self.local_fetch(subdirs_this=self.subdirs, relative=True)
-
-    def test_fetch_norelative_nosubdir(self):
-        self.local_fetch(subdirs_this=None, relative=False)
-
-    def test_fetch_norelative_subdir(self):
-        self.local_fetch(subdirs_this=self.subdirs, relative=False)
+                self.assertTrue(os.path.exists(self.local_data_dir))
+                shutil.rmtree(self.local_data_dir)
+                self.assertTrue(os.path.exists(self.external_site))
+                shutil.rmtree(self.external_site)
 
     def local_fetch(self, subdirs_this=None, relative=True):
         # test local fetch, so create external and local data dir
@@ -170,7 +152,7 @@ class TestFileTransferLocal(unittest.TestCase):
             dest_append_prefix = ['']
         # test local fetch, so create external and local data dir
         if len(dest_append_prefix) > 1:
-            # ok, if dest_append_prefix has more than 2 levels, then create all intermediate directories except for last one.
+            # ok, if dest_append_prefix has more than 2 levels, create all intermediate directories except for last one.
             os.makedirs(os.path.join(*([self.default_site_path] + dest_append_prefix[:-1])))
         # ok. Now time to create files in local data sub dirs.
         test_util.create_files_from_filelist(self.filelist, self.local_data_dir, subdirs_this)
@@ -191,5 +173,5 @@ class TestFileTransferLocal(unittest.TestCase):
             self.assertFalse(os.path.exists(os.path.join(self.default_site_path, *dest_append_prefix)))
 
 
-# if __name__ == '__main__':
-#     unittest.main()
+if __name__ == '__main__':
+    unittest.main()
