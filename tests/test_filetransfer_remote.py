@@ -254,6 +254,7 @@ class TestFileTransferRemote(unittest.TestCase):
                                            relative_push=relative_push_this, relative_fetch=relative_fetch_this,
                                            dest_append_prefix=dest_append_prefix_this, nas_ip_address=nas_ip_address,
                                            remote_data_dir=remote_data_dir, local_fetch_option=local_fetch_option,
+                                           map_push=map_push, map_fetch=map_fetch,
                                            strip_append_prefix=strip_append_prefix)
                     # time.sleep(2)  # wait for a while for delete to finish.
 
