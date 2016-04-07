@@ -8,20 +8,20 @@ import os
 import itertools
 from copy import deepcopy
 import getpass
-
+import unittest
 import datasmart.core.filetransfer
 import datasmart.core.util
 from datasmart.core import schemautil
 
-local_map_dir_root = os.path.join(os.path.expanduser("~"),"datasmart_test")
-remote_dir_root = os.path.join(os.path.expanduser("~"),"datasmart_test")
-os.makedirs(local_map_dir_root, exist_ok=True)
+local_map_dir_root = None
+remote_dir_root = None
+
 
 def check_remote_push_fetch_result(ret_push, ret_fetch, filelist,
                                    local_data_dir, local_cache_dir, subdirs_push=None, subdirs_fetch=None,
                                    relative_push=True, relative_fetch=True, dest_append_prefix=None,
                                    nas_ip_address='', remote_data_dir='', local_fetch_option='copy',
-                                   map_fetch=False, map_push=False, strip_append_prefix = True):
+                                   map_fetch=False, map_push=False, strip_append_prefix=True):
     """
     :param ret_push:
     :param ret_fetch:
@@ -160,7 +160,7 @@ def remote_push_fetch(filetransfer, filelist, local_data_dir, local_cache_dir, s
         dest_append_prefix = ['']
     remote_append_dir = os.path.join(local_map_dir_root, remote_data_dir, *dest_append_prefix)
     remote_append_dir_root = os.path.join(local_map_dir_root, remote_data_dir)
-    print('root dir: {}'.format(remote_append_dir_root))
+    #print('root dir: {}'.format(remote_append_dir_root))
     try:
         os.makedirs(remote_append_dir, exist_ok=False)
         os.mkdir(local_data_dir)
@@ -179,7 +179,7 @@ def remote_push_fetch(filetransfer, filelist, local_data_dir, local_cache_dir, s
         filetransfer.set_config(config_temp)
 
         # wait for a while for everything to sync.
-        #time.sleep(2)
+        # time.sleep(2)
 
         # do the fetch.
         os.mkdir(local_cache_dir)
@@ -222,36 +222,58 @@ def remote_push_fetch(filetransfer, filelist, local_data_dir, local_cache_dir, s
         if dest_append_prefix != ['']:
             assert os.path.exists(remote_append_dir)
             filetransfer.remove_dir(site=ret_push['dest'])
-            #time.sleep(5)
+            # time.sleep(5)
             assert not os.path.exists(remote_append_dir)
 
     finally:
         filetransfer.set_config(config_old)
-        if os.path.exists(local_data_dir):
-            shutil.rmtree(local_data_dir)
-        if os.path.exists(local_cache_dir):
-            shutil.rmtree(local_cache_dir)
-        if os.path.exists(remote_append_dir_root):
-            shutil.rmtree(remote_append_dir_root)
+        assert os.path.exists(local_data_dir)
+        shutil.rmtree(local_data_dir)
+        assert os.path.exists(local_cache_dir)
+        shutil.rmtree(local_cache_dir)
+        assert os.path.exists(remote_append_dir_root)
+        shutil.rmtree(remote_append_dir_root)
 
 
-def main_func(username):
-    filetransfer = datasmart.core.filetransfer.FileTransfer()
-    config_default = deepcopy(filetransfer.config)
-
-    #nas_ip_address = input("type in the IP address of my QNAP TS-251 NAS:")
+def test_func(username=None):
+    global local_map_dir_root
+    global remote_dir_root
+    if username is None:
+        username = getpass.getuser()
+    # nas_ip_address = input("type in the IP address of my QNAP TS-251 NAS:")
     nas_ip_address = "localhost"
-    numlist = (1,5)
-    for i in range(2):
+    numlist = (1, 5, 100)
+    for i in range(3):
         #  since only local transfer is considered,
         filelist = test_util.gen_filelist(numlist[i], abs_path=False)
         local_data_dir = " ".join(test_util.gen_filenames(3))
         local_cache_dir = " ".join(test_util.gen_filenames(3))
         remote_data_dir = " ".join(test_util.gen_filenames(3))
+
         subdirs_push = test_util.gen_filenames(3)
         subdirs_fetch = test_util.gen_filenames(3)
         dest_append_prefix = test_util.gen_filenames(3)
-        config_this = deepcopy(config_default)
+
+        local_map_dir_root = " ".join(test_util.gen_filenames(3))
+        remote_dir_root = " ".join(test_util.gen_filenames(3))
+
+        # check that all of them are different.
+        assert len({local_data_dir, local_cache_dir, remote_data_dir, local_map_dir_root, remote_dir_root}) == len(
+            [local_data_dir, local_cache_dir, remote_data_dir, local_map_dir_root, remote_dir_root])
+        local_map_dir_root = os.path.abspath(local_map_dir_root)
+        remote_dir_root = os.path.abspath(remote_dir_root)
+        os.makedirs(local_map_dir_root)
+        os.symlink(local_map_dir_root, remote_dir_root)
+
+        config_this = {
+            "local_data_dir": "_data",
+            "site_mapping_push": [],
+            "site_mapping_fetch": [],
+            "remote_site_config": {},
+            "default_site": {},
+            "quiet": True,  # less output.
+            "local_fetch_option": "copy"
+        }
         config_this['local_data_dir'] = local_data_dir
         config_this['site_mapping_push'] = [
             {
@@ -295,13 +317,14 @@ def main_func(username):
         config_this['quiet'] = True
         config_this['local_fetch_option'] = 'copy'
         assert schemautil.validate(datasmart.core.filetransfer.FileTransferConfigSchema.get_schema(), config_this)
-        filetransfer.set_config(config_this)
+        filetransfer = datasmart.core.filetransfer.FileTransfer(config_this)
 
         # test push & fetch: first add data in local_data_dir, then push, then set ``config_this['local_data_dir']``
         # to local_cache_dir, then fetch data into local_cache_dir, and then compare.
         for x in itertools.product([subdirs_push, None], [subdirs_fetch, None], [True, False], [True, False],
                                    [dest_append_prefix, None], ['copy', 'nocopy'], [True, False], [True, False],
                                    [True, False]):
+
             subdirs_push_this, subdirs_fetch_this, relative_push_this, \
             relative_fetch_this, dest_append_prefix_this, local_fetch_option, \
             map_push, map_fetch, strip_append_prefix = x
@@ -310,21 +333,29 @@ def main_func(username):
             if strip_append_prefix and not (dest_append_prefix_this and relative_fetch_this):
                 continue
 
-            print("push rel: {}, fetch rel: {}".format(relative_push_this, relative_fetch_this))
-            print("subdir push: {}, subdir fetch: {}".format(subdirs_push_this, subdirs_fetch_this))
-            print("dest append: {}, local fetch: {}".format(dest_append_prefix_this, local_fetch_option))
-            print("map push: {}, map fetch: {}".format(map_push, map_fetch))
-            print("strip appendix: {}".format(strip_append_prefix))
+            #print("push rel: {}, fetch rel: {}".format(relative_push_this, relative_fetch_this))
+            #print("subdir push: {}, subdir fetch: {}".format(subdirs_push_this, subdirs_fetch_this))
+            #print("dest append: {}, local fetch: {}".format(dest_append_prefix_this, local_fetch_option))
+            #print("map push: {}, map fetch: {}".format(map_push, map_fetch))
+            #print("strip appendix: {}".format(strip_append_prefix))
             remote_push_fetch(filetransfer, filelist, local_data_dir, local_cache_dir,
                               subdirs_push=subdirs_push_this, subdirs_fetch=subdirs_fetch_this,
                               relative_push=relative_push_this, relative_fetch=relative_fetch_this,
                               dest_append_prefix=dest_append_prefix_this, nas_ip_address=nas_ip_address,
                               remote_data_dir=remote_data_dir, local_fetch_option=local_fetch_option,
                               strip_append_prefix=strip_append_prefix)
-            #time.sleep(2)  # wait for a while for delete to finish.
+            # time.sleep(2)  # wait for a while for delete to finish.
 
-        print('pass {}'.format(i))
 
+        assert os.path.exists(local_map_dir_root)
+        assert os.path.exists(remote_dir_root)
+        shutil.rmtree(local_map_dir_root)
+        os.remove(remote_dir_root)
+        #print('pass {}'.format(i))
+
+
+testcase = unittest.FunctionTestCase(test_func)
 
 if __name__ == '__main__':
-    main_func(getpass.getuser())
+    testcase.runTest()
+    print('OK file transfer remote mapping')

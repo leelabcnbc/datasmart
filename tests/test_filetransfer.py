@@ -5,7 +5,6 @@ it's asssumed that datajoin package can be found now, probably by playing with P
 import unittest
 import shutil
 import os
-from copy import deepcopy
 import test_util
 import datasmart.core.filetransfer
 import datasmart.core.util
@@ -30,6 +29,11 @@ class TestFileTransferLocal(unittest.TestCase):
         self.external_site = " ".join(test_util.gen_filenames(3))
         self.subdirs = test_util.gen_filenames(3)
         self.dest_append_prefix = test_util.gen_filenames(3)
+
+        # check that all of them are different.
+        assert len({self.local_data_dir, self.default_site_path, self.external_site}) == len(
+            [self.local_data_dir, self.default_site_path, self.external_site])
+
         config_this['local_data_dir'] = self.local_data_dir
         config_this['default_site'] = {'local': True, 'path': self.default_site_path}
         assert schemautil.validate(datasmart.core.filetransfer.FileTransferConfigSchema.get_schema(), config_this)
@@ -187,5 +191,5 @@ class TestFileTransferLocal(unittest.TestCase):
             self.assertFalse(os.path.exists(os.path.join(self.default_site_path, *dest_append_prefix)))
 
 
-if __name__ == '__main__':
-    unittest.main()
+# if __name__ == '__main__':
+#     unittest.main()
