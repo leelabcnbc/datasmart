@@ -48,5 +48,12 @@ def create_files_from_filelist(filelist, local_data_dir, subdirs_this=None):
             f.writelines(fake.sentences())
 
 
+class MockNames:
+    git_repo_url = "datasmart.core.util.get_git_repo_url"
+    git_repo_hash = "datasmart.core.util.get_git_repo_hash"
+    git_check_clean = "datasmart.core.util.check_git_repo_clean"
+
+
+
 if __name__ == '__main__':
     print(gen_filelist(10))

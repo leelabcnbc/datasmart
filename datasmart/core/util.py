@@ -120,6 +120,7 @@ def check_git_repo_clean(repopath):
     git_status_output = subprocess.check_output(['git', 'status', '--porcelain'],
                                                 cwd=repopath).decode().strip()
     assert not git_status_output, "the repository must be clean!"
+    return True
 
 # config['cortex_expt_repo_path']
 #     cortex_expt_repo_url =
