@@ -9,7 +9,7 @@ import test_util
 import datasmart.core.filetransfer
 import datasmart.core.util
 from datasmart.core import schemautil
-import random
+from copy import deepcopy
 import itertools
 
 
@@ -35,8 +35,12 @@ class TestFileTransferLocal(unittest.TestCase):
         assert len({self.local_data_dir, self.default_site_path, self.external_site}) == len(
             [self.local_data_dir, self.default_site_path, self.external_site])
 
-        config_this['local_data_dir'] = self.local_data_dir
-        config_this['default_site'] = {'local': True, 'path': self.default_site_path}
+        config_this['local_data_dir'] = os.path.abspath(self.local_data_dir)
+        config_this['default_site'] = {'local': True, 'path': os.path.abspath(self.default_site_path)}
+        config_this_normalized = datasmart.core.filetransfer.FileTransfer.normalize_config(deepcopy(config_this))
+        self.assertTrue(os.path.exists(self.local_data_dir))
+        shutil.rmtree(self.local_data_dir)
+        assert config_this == config_this_normalized
         assert schemautil.validate(datasmart.core.filetransfer.FileTransferConfigSchema.get_schema(), config_this)
         self.filetransfer = datasmart.core.filetransfer.FileTransfer(config_this)
 
@@ -177,4 +181,4 @@ class TestFileTransferLocal(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(failfast=True)
