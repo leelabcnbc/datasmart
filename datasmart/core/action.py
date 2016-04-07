@@ -362,7 +362,7 @@ class DBAction(Action):
                 f.write(self.generate_query_doc_template())
             # TODO: add some non-interactive option to faciliate testing,
             # or use some tool to do it (probably 2nd is better for now)
-            input("a query doc template is at {}, "
+            input("Step 0 a query doc template is at {}, "
                   "please finish it and press Enter".format(self.__query_template_path))
         else:
             input("the query doc is already at {},"
@@ -402,7 +402,8 @@ class DBAction(Action):
         assert '_class_name_' not in post_prepare_result, "don't include _class_name_ in your prepare result!"
         post_prepare_result['_class_name_'] = self.__class__.__qualname__
 
-        pickle.dump(post_prepare_result, open(self.__prepare_result_path, 'wb'))
+        with open(self.__prepare_result_path, 'wb') as f:
+            pickle.dump(post_prepare_result, f)
 
     @abstractmethod
     def prepare_post(self, query_result) -> dict:
@@ -515,7 +516,7 @@ class ManualDBActionWithSchema(DBActionWithSchema):
         savepath = util.joinpath_norm(self.global_config['project_root'], self.config['savepath'])
         template_text = self.dbschema_instance.get_template()
         record = save_wait_and_load(template_text, savepath,
-                                    "Press Enter to continue after finish editing and saving the tempalte...",
+                                    "Step 1 Enter to continue after finish editing and saving the tempalte...",
                                     load_json=True, overwrite=False)
         record = self.import_record_template(record)
         self.before_insert_record(record)
