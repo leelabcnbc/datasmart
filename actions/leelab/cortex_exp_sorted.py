@@ -58,7 +58,7 @@ class CortexExpSortedAction(DBActionWithSchema):
         for idx, method in enumerate(sort_methods, start=1):
             print("{}: {}".format(idx, method))
         sort_choice_idx = int(
-            input("please choose the method to do sorting, from {} to {}".format(1, len(sort_methods))))
+            input("please choose the method to do sorting, from {} to {}:  ".format(1, len(sort_methods))))
         assert 1 <= sort_choice_idx <= len(sort_methods), "invalid method!"
         sort_choice = sort_methods[sort_choice_idx - 1]
         input("press enter to start using method {}".format(sort_choice))
@@ -94,7 +94,7 @@ class CortexExpSortedAction(DBActionWithSchema):
         record = save_wait_and_load(json.dumps(record, indent=2),
                                     self.config['savepath'],
                                     "please edit files to sort in 'files_to_sort', "
-                                    "and edit notes and sort person. don't "
+                                    "and edit notes and sort person (even add more files to sort). don't "
                                     "care about sorted_files now...", overwrite=False, load_json=True)
         # first, keep only NEV files
         assert self.dbschema_instance.validate_record(record)
@@ -146,8 +146,13 @@ class CortexExpSortedAction(DBActionWithSchema):
         shutil.copyfile(os.path.join(self.config['spike_sorting_software_repo_path'], spikesort_file),
                         os.path.join(local_dir, 'spikesort.tar.gz'))
 
-
-
+        system_info_file = os.path.join(local_dir, 'system_info')
+        sacbatch_output_file = os.path.join(local_dir, 'sacbatch_output')
+        open(system_info_file, 'w').close()
+        open(sacbatch_output_file, 'w').close()
+        # add all permissions.
+        os.chmod(system_info_file, 0o777)
+        os.chmod(sacbatch_output_file, 0o777)
         # now time to write a script for sac batch.
         prompt_text = "SAC script {} and SpikeSort script {} are in {}, run them outside and then press enter".format(
             "sacbatch_script.m", "spikesort_script.m", self.get_file_transfer_config()['local_data_dir']
@@ -170,8 +175,27 @@ class CortexExpSortedAction(DBActionWithSchema):
         record['sort_config']['spikesort_script'] = spikesort_script
         record['sort_config']['master_script'] = main_script
 
-        print("now {} sorted NEV files will be uploaded".format(len(filelist_local)))
-        ret_2 = self.push_files(insert_id, filelist_local, relative=False)
+
+        print("now dry run file upload to get the locations of loaded file")
+        ret_2 = self.push_files(insert_id, filelist_local, relative=False, dryrun=True)
+        record['sorted_files']['site'] = ret_2['dest']
+        record['sorted_files']['filelist'] = ret_2['filelist']
+        record_old = record
+        record = save_wait_and_load(json.dumps(record, indent=2),
+                                    self.config['savepath'],
+                                    "you can remove some files to upload at this step, "
+                                    "if you add some files", overwrite=True, load_json=True)
+        # first, keep only NEV files
+        assert self.dbschema_instance.validate_record(record)
+        filelist_local_new = [os.path.basename(f) for f in record['sorted_files']['filelist']]
+        assert set(record['sorted_files']['filelist']) <= set(ret_2['filelist']), "you can only remove files!"
+        assert set(filelist_local_new) <= set(filelist_local), "you can only remove files!"
+        del record_old['sorted_files']['filelist']
+        del record['sorted_files']['filelist']
+        assert record_old==record, "don't change anything other than file list!"
+        print("now {} sorted NEV files will be uploaded".format(len(filelist_local_new)))
+        ret_2 = self.push_files(insert_id, filelist_local_new, relative=False)
+
         record['sorted_files']['site'] = ret_2['dest']
         record['sorted_files']['filelist'] = ret_2['filelist']
         return record
