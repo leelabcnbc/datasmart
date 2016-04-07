@@ -1,10 +1,10 @@
 import unittest
-from datasmart.actions.demo.file_download import FileDownloadAction
+from datasmart.actions.demo.file_upload import FileUploadAction
 
 
 class MyTestCase(unittest.TestCase):
     def test_something(self):
-        a = FileDownloadAction()
+        a = FileUploadAction({})
         self.assertEqual(True, True)
 
 
