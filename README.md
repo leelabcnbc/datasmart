@@ -1,6 +1,6 @@
 # DataSMART
 
-[![Build Status](https://travis-ci.org/leelabcnbc/datasmart.svg?branch=master)](https://travis-ci.org/leelabcnbc/datasmart) [![Documentation Status](http://readthedocs.org/projects/datasmart/badge/?version=latest)](http://datasmart.readthedocs.org/en/latest/?badge=latest)
+[![Build Status](https://travis-ci.org/leelabcnbc/datasmart.svg?branch=master)](https://travis-ci.org/leelabcnbc/datasmart) [![Coverage Status](https://coveralls.io/repos/github/leelabcnbc/datasmart/badge.svg?branch=master)](https://coveralls.io/github/leelabcnbc/datasmart?branch=master) [![Documentation Status](http://readthedocs.org/projects/datasmart/badge/?version=latest)](http://datasmart.readthedocs.org/en/latest/?badge=latest)
 
 DataSMART is design to manage data and processing pipelines in science labs.
 
