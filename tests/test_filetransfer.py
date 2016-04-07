@@ -24,7 +24,7 @@ class TestFileTransferLocal(unittest.TestCase):
             "quiet": True,  # less output.
             "local_fetch_option": "copy"
         }
-        self.filelist = test_util.gen_filelist(random.choice([100, 1]), abs_path=False)
+
         self.local_data_dir = " ".join(test_util.gen_filenames(3))
         self.default_site_path = " ".join(test_util.gen_filenames(3))
         self.external_site = " ".join(test_util.gen_filenames(3))
@@ -41,9 +41,11 @@ class TestFileTransferLocal(unittest.TestCase):
         self.filetransfer = datasmart.core.filetransfer.FileTransfer(config_this)
 
     def test_push(self):
-        for x in itertools.product([self.subdirs, None], [True, False], [self.dest_append_prefix, None]):
-            subdirs_this, relative, dest_append_prefix = x
-            with self.subTest(subdirs_this=subdirs_this, relative=relative, dest_append_prefix=dest_append_prefix):
+        for x in itertools.product([self.subdirs, None], [True, False], [self.dest_append_prefix, None], [1, 100]):
+            subdirs_this, relative, dest_append_prefix, filecount = x
+            with self.subTest(subdirs_this=subdirs_this, relative=relative, dest_append_prefix=dest_append_prefix,
+                              filecount = filecount):
+                self.filelist = test_util.gen_filelist(filecount, abs_path=False)
                 self.assertFalse(os.path.exists(self.local_data_dir))
                 os.mkdir(self.local_data_dir)
                 self.assertFalse(os.path.exists(self.default_site_path))
@@ -57,9 +59,10 @@ class TestFileTransferLocal(unittest.TestCase):
                 shutil.rmtree(self.default_site_path)
 
     def test_fetch(self):
-        for x in itertools.product([self.subdirs, None], [True, False]):
-            subdirs_this, relative = x
-            with self.subTest(subdirs_this=subdirs_this, relative=relative):
+        for x in itertools.product([self.subdirs, None], [True, False], [1,100]):
+            subdirs_this, relative, filecount= x
+            with self.subTest(subdirs_this=subdirs_this, relative=relative, filecount=filecount):
+                self.filelist = test_util.gen_filelist(filecount, abs_path=False)
                 self.assertFalse(os.path.exists(self.local_data_dir))
                 os.mkdir(self.local_data_dir)
                 self.assertFalse(os.path.exists(self.external_site))
