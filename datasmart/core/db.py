@@ -38,7 +38,7 @@ class DB(Base):
         # TODO: MongoClient is nonblocking, and auth is blocking. So if there's no auth, we don't discover bug
         # until much later.
         # which means that if there's no auth, this method can return yet no db is available.
-        assert self.config['authentication'], "DB must be connected with authentication!"
+        # assert self.config['authentication'], "DB must be connected with authentication!"
         if self.config['authentication']:
             # this line would raise exception if authentication fails.
             client[self.config['auth_db']].authenticate(name=self.config['user'], password=self.config['password'])
