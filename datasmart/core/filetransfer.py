@@ -186,8 +186,8 @@ class FileTransfer(Base):
             rm_command = " ".join(['rm', '-rf', shlex.quote(rm_site_spec_remote)])
             full_command = ['ssh', site_info['ssh_username'] + '@' + site_mapped['path'],
                             '-p', str(site_info['ssh_port']), rm_command]
-
-        print(" ".join(full_command))
+        if not self.config['quiet']:
+            print(" ".join(full_command))
         subprocess.run(full_command, check=True, stdout=stdout_arg)
 
     def fetch(self, filelist: list, src_site: dict = None, relative: bool = False, subdirs: list = None,
@@ -391,7 +391,8 @@ class FileTransfer(Base):
 
         # print the rsync command. this printed one may not work if you directly copy it, since special characters,
         # like spaces are not quoted properly.
-        print(" ".join(rsync_command))
+        if not self.config['quiet']:
+            print(" ".join(rsync_command))
         stdout_arg = subprocess.PIPE if self.config['quiet'] else None
         try:
             subprocess.run(rsync_command, check=True, stdout=stdout_arg)  # if not return 0, if fails.
