@@ -19,10 +19,19 @@ def main():
         else:
             return
 
+    def ignore_function(p, f):
+        assert os.path.isabs(p)
+        init_ignore_set = ['__pycache__', '__init__.py']
+        for file in f:
+            file_full = os.path.join(p, file)
+            if os.path.isfile(file_full) and file != 'config.json':
+                init_ignore_set.append(file)
+        return list(init_ignore_set)
+
     assert not os.path.exists(dir_to_copy_to)
     os.makedirs(os.path.split(dir_to_copy_to)[0], exist_ok=True)  # make sure the top directory exists.
     shutil.copytree(os.path.join(current_dir, 'datasmart', 'config', 'core'), dir_to_copy_to,
-                    ignore=lambda p, f: ['__pycache__', '__init__.py'])
+                    ignore=ignore_function)
     print("done!")
 
 

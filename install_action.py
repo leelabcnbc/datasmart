@@ -8,6 +8,15 @@ import sys
 
 
 def main(install_folder, actions):
+    def ignore_function(p, f):
+        assert os.path.isabs(p)
+        init_ignore_set = ['__pycache__', '__init__.py']
+        for file in f:
+            file_full = os.path.join(p, file)
+            if os.path.isfile(file_full) and file != 'config.json':
+                init_ignore_set.append(file)
+        return list(init_ignore_set)
+
     current_dir = sys.path[0]
     assert os.path.isabs(current_dir)
     assert not os.path.exists(install_folder), 'the installation folder must not exist!'
@@ -28,7 +37,7 @@ def main(install_folder, actions):
         action_config_dir_new = os.path.join(install_folder, 'config', 'actions', action)
         assert os.path.isdir(action_config_dir), "action config dir doesn't exist! should be a bug"
         os.makedirs(os.path.split(action_config_dir_new)[0], exist_ok=True)
-        shutil.copytree(action_config_dir, action_config_dir_new, ignore=lambda p, _: ['__pycache__', '__init__.py'])
+        shutil.copytree(action_config_dir, action_config_dir_new, ignore=ignore_function)
 
         # copy the demo script to action_flat_name
         action_script_file = os.path.join(current_dir, 'demo_scripts', 'actions', action) + '.py'
