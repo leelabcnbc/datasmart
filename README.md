@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/leelabcnbc/datasmart.svg?branch=master)](https://travis-ci.org/leelabcnbc/datasmart) [![Coverage Status](https://coveralls.io/repos/github/leelabcnbc/datasmart/badge.svg?branch=master)](https://coveralls.io/github/leelabcnbc/datasmart?branch=master) [![codecov.io](https://codecov.io/github/leelabcnbc/datasmart/coverage.svg?branch=master)](https://codecov.io/github/leelabcnbc/datasmart?branch=master) [![Documentation Status](http://readthedocs.org/projects/datasmart/badge/?version=latest)](http://datasmart.readthedocs.org/en/latest/?badge=latest)
 
-DataSMART is design to manage data and processing pipelines in science labs.
+DataSMART is designed to manage data and processing pipelines in science labs.
 
 This project is under heavy development...
 
@@ -34,7 +34,7 @@ In that directory, run `start_*` scripts to start the action.
 
 ## Usage
 
-Before each time using DataSMART, run `. activate datasmart` to switch to the correct environment.
+In those directories created by `install_action.py`, run `start_*` scripts to start the action, that is, `./start_*.sh`.
 
 ## Config location.
 
@@ -45,4 +45,4 @@ DataSMART will read the config files for modules and actions under three differe
 2. Then, config files under `~/.datasmart` will be tried.
 3. Last, default config files under the repository will be tried.
 
-I think most of the time, it's most convenient to have all configuration files under `~/.datasmart`.
+`./install_config_core.py` installs all **core** configuration files under `~/.datasmart`, and `./install_action.py` installs **action-specific** configuration files under separate project folders. You are welcome to violate this scheme.
