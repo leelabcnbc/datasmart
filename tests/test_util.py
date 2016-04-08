@@ -11,6 +11,11 @@ def gen_filename():
     return (''.join(random.choice(""" !"#:$%&'()*+,-;<=>?@[\]^_`{|}~""" + string.ascii_letters) for _ in
                    range(word_len)) + fake.file_extension()).strip()
 
+def gen_filename_strict_lower():
+    word_len = random.randint(1, 20)
+    return (''.join(random.choice("abcdefghijklmnopqrstuvwxyz_-0123456789") for _ in
+                   range(word_len)) + fake.file_extension()).strip()
+
 
 def gen_filenames(n=100):
     filenames = set()

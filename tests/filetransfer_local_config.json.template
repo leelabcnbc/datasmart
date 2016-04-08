@@ -1,23 +1,19 @@
-{
+{{
   "local_data_dir": "_data",
   "site_mapping_push": [
   ],
   "site_mapping_fetch": [
   ],
-  "remote_site_config": {
-    "raptor.cnbc.cmu.edu": {
-      "ssh_username": "leelab",
+  "remote_site_config": {{
+    "localhost": {{
+      "ssh_username": "{}",
       "ssh_port": 22
-    },
-    "localhost": {
-      "ssh_username": "yourname",
-      "ssh_port": 22
-    }
-  },
-  "default_site": {
+    }}
+  }},
+  "default_site": {{
     "path": "default_local_site",
     "local": true
-  },
+  }},
   "quiet": false,
   "local_fetch_option": "copy"
-}
+}}

@@ -48,7 +48,7 @@ class CortexExpSchemaJSL(jsl.Document):
     timestamp = jsl.StringField(format="date-time", required=True)
     monkey = jsl.StringField(enum=["leo", "koko", "gabby", "frugo"], required=True)
     code_repo = jsl.DocumentField(schemautil.GitRepoRef, required=True)
-    experiment_name = jsl.StringField(required=True)
+    experiment_name = jsl.StringField(required=True, pattern=schemautil.StringPatterns.relativePathPattern)
     timing_file_name = jsl.StringField(pattern=schemautil.StringPatterns.strictFilenameLowerPattern('tm'),
                                        required=True)
     condition_file_name = jsl.StringField(pattern=schemautil.StringPatterns.strictFilenameLowerPattern('cnd'),
