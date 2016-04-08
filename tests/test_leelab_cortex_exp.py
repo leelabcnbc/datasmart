@@ -4,7 +4,7 @@ import test_util
 from test_util import MockNames
 import os
 import shutil
-from datasmart.actions.leelab.cortex_exp import CortexExpAction
+from datasmart.actions.leelab.cortex_exp import CortexExpAction, CortexExpSchemaJSL
 import pymongo
 import json
 from functools import partial
@@ -14,6 +14,10 @@ from subprocess import CalledProcessError
 import hashlib
 from datasmart.core.util import joinpath_norm
 import getpass
+from datasmart.core import schemautil
+from datasmart.core import util
+import strict_rfc3339
+
 
 class LeelabCortexExpAction(unittest.TestCase):
     @classmethod
@@ -23,11 +27,10 @@ class LeelabCortexExpAction(unittest.TestCase):
         cls.collection_client = cls.db_client['leelab']['cortex_exp']
         assert not os.path.exists("config")
         with open("filetransfer_local_config.json.template", "rt") as f:
-            filetransfer_config_text=f.read().format(getpass.getuser())
+            filetransfer_config_text = f.read().format(getpass.getuser())
         os.makedirs("config/core/filetransfer")
         with open("config/core/filetransfer/config.json", "wt") as f:
             f.write(filetransfer_config_text)
-
 
     def setUp(self):
         self.git_url = 'http://git.example.com'
@@ -80,10 +83,10 @@ class LeelabCortexExpAction(unittest.TestCase):
         self.temp_dict['condition_file_name'] = test_util.gen_filename_strict_lower() + '.cnd'
         self.temp_dict['item_file_name'] = test_util.gen_filename_strict_lower() + '.itm'
         filelist_full = [os.path.join(self.git_repo_path, self.temp_dict['experiment_name'],
-                                    x) for x in [self.temp_dict['timing_file_name'],
-                                              self.temp_dict['condition_file_name'],
-                                              self.temp_dict['item_file_name']]]
-        test_util.create_files_from_filelist(filelist_full,local_data_dir='.')
+                                      x) for x in [self.temp_dict['timing_file_name'],
+                                                   self.temp_dict['condition_file_name'],
+                                                   self.temp_dict['item_file_name']]]
+        test_util.create_files_from_filelist(filelist_full, local_data_dir='.')
 
         with open(filelist_full[0], 'rb') as f:
             self.temp_dict['timing_file_sha1'] = hashlib.sha1(f.read()).hexdigest()
@@ -93,12 +96,11 @@ class LeelabCortexExpAction(unittest.TestCase):
             self.temp_dict['item_file_sha1'] = hashlib.sha1(f.read()).hexdigest()
         test_util.create_files_from_filelist(self.filelist_true, local_data_dir=self.site['prefix'])
 
-
     def remove_instance(self):
         os.remove(self.savepath)
         os.remove('query_template.py')
         os.remove('prepare_result.p')
-        shutil.rmtree(os.path.join(self.git_repo_path,self.temp_dict['experiment_name']))
+        shutil.rmtree(os.path.join(self.git_repo_path, self.temp_dict['experiment_name']))
         shutil.rmtree(self.site['prefix'])
 
     def tearDown(self):
@@ -137,8 +139,6 @@ class LeelabCortexExpAction(unittest.TestCase):
                     self.assertNotEqual(exp_instance.exception.args[0].find(exception_msg), -1)
                 self.remove_instance()
 
-
-
     def test_insert_correct_stuff(self):
         for _ in range(100):
             self.get_new_instance()
@@ -155,6 +155,15 @@ class LeelabCortexExpAction(unittest.TestCase):
             self.assertEqual(result['condition_file_sha1'], self.temp_dict['condition_file_sha1'])
             self.assertEqual(result['item_file_sha1'], self.temp_dict['item_file_sha1'])
             self.assertTrue(self.action.is_finished())
+            del result['timing_file_sha1']
+            del result['condition_file_sha1']
+            del result['item_file_sha1']
+            del result['_id']
+            timestamp1 = result['timestamp'].timestamp()
+            result['timestamp'] = strict_rfc3339.timestamp_to_rfc3339_utcoffset(timestamp1)
+            self.assertTrue(schemautil.validate(CortexExpSchemaJSL.get_schema(), result))
+            timestamp2 = util.rfc3339_to_timestamp(result['timestamp'])
+            self.assertLessEqual(abs(timestamp1 - timestamp2), 1.0)  # less than 1s in deviation. (pretty loose bound)
             self.action.revoke()
             result = self.__class__.collection_client.find_one({'_id': result_id})
             self.assertIsNone(result)
@@ -176,7 +185,6 @@ class LeelabCortexExpAction(unittest.TestCase):
             record['recorded_files']['site'] = instance.site
             record['recorded_files']['filelist'] = instance.filelist_true
 
-
             wrong_type = instance.temp_dict['wrong_type']
             if wrong_type == 'correct':
                 pass
@@ -187,11 +195,11 @@ class LeelabCortexExpAction(unittest.TestCase):
                 record['monkey'] = random.choice(
                     ['Koko', 'Frugo', 'Leo', 'demo', 'koKo', 'lEo', 'gaBBy', None, 123123, 2.4])
             elif wrong_type == 'nonexistent tm':
-                record['timing_file_name'] = 'a'+record['timing_file_name']
+                record['timing_file_name'] = 'a' + record['timing_file_name']
             elif wrong_type == 'nonexistent cnd':
-                record['condition_file_name'] = 'a'+record['condition_file_name']
+                record['condition_file_name'] = 'a' + record['condition_file_name']
             elif wrong_type == 'nonexistent itm':
-                record['item_file_name'] = 'a'+record['item_file_name']
+                record['item_file_name'] = 'a' + record['item_file_name']
             elif wrong_type == 'nonexistent recording files':
                 record['recorded_files']['filelist'] = instance.filelist_false
             else:
