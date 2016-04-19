@@ -11,6 +11,7 @@ from datasmart.core import util
 import strict_rfc3339
 from bson import ObjectId
 from copy import deepcopy
+import time
 
 from test_util import mock_util, env_util, file_util
 
@@ -153,11 +154,13 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
     def remove_instance(self):
         file_util.rm_files_from_file_list(self.files_to_cleanup, must_exist=False)
         file_util.rm_files_from_file_list(self.files_to_cleanup_sacbatch_and_spikesort)
+        time.sleep(0.1)   # buffer time for removal
         for file in self.files_to_cleanup + self.files_to_cleanup_sacbatch_and_spikesort:
             self.assertFalse(os.path.exists(file))
         file_util.rm_dirs_from_dir_list(self.dirs_to_cleanup)
         env_util.teardown_remote_site(self.site)
         env_util.teardown_remote_site(self.site_raw)
+        time.sleep(0.1)   # buffer time for removal
 
     def tearDown(self):
         # drop and then reset

@@ -12,20 +12,88 @@ from datasmart.actions.leelab.cortex_exp import CortexExpAction, CortexExpSchema
 from datasmart.core import schemautil
 from datasmart.core import util
 from test_util import env_util, mock_util, file_util
+import time
 
 
 class LeelabCortexExpAction(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         env_util.setup_db(cls, [CortexExpAction.table_path])
-        with open("filetransfer_local_config.json.template", "rt") as f:
-            filetransfer_config_text = f.read().format(getpass.getuser())
+        filetransfer_config_text = """{{
+          "local_data_dir": "_data",
+          "site_mapping_push": [
+          ],
+          "site_mapping_fetch": [
+          ],
+          "remote_site_config": {{
+            "localhost": {{
+              "ssh_username": "{}",
+              "ssh_port": 22
+            }}
+          }},
+          "default_site": {{
+            "path": "default_local_site",
+            "local": true
+          }},
+          "quiet": false,
+          "local_fetch_option": "copy"
+        }}""".format(getpass.getuser())
+
         env_util.setup_local_config(('core', 'filetransfer'), filetransfer_config_text)
 
     def setUp(self):
         # I put setup here only to pass in reference to class for mock function.
         self.mock_function = partial(LeelabCortexExpAction.input_mock_function, instance=self)
         self.config_path = CortexExpAction.config_path
+
+    def get_correct_result(self):
+        # create the correct result.
+        correct_result = dict()
+        correct_result['schema_revision'] = 1
+        correct_result['code_repo'] = dict()
+        correct_result['code_repo']['repo_url'] = self.git_mock_info['git_url']
+        correct_result['code_repo']['repo_hash'] = self.git_mock_info['git_hash']
+        correct_result['monkey'] = random.choice(monkeylist)
+        correct_result['experiment_name'] = self.temp_dict['experiment_name']
+        correct_result['timing_file_name'] = self.temp_dict['timing_file_name']
+        correct_result['condition_file_name'] = self.temp_dict['condition_file_name']
+        correct_result['item_file_name'] = self.temp_dict['item_file_name']
+        correct_result['recorded_files'] = dict()
+        correct_result['recorded_files']['site'] = self.site
+        correct_result['recorded_files']['filelist'] = self.filelist_true
+        # TODO has some test case for this mapping stuff.
+        correct_result['condition_stimulus_mapping'] = [
+            {"condition_number": 1, "stimuli": ["a1.ctx", "a2.ctx"]},
+            {"condition_number": 2, "stimuli": ["b1.ctx", "b2.ctx"]},
+            {"condition_number": 3, "stimuli": ["a1.ctx", "b2.ctx"]},
+            {"condition_number": 4, "stimuli": ["a2.ctx", "b1.ctx"]}
+        ]
+        correct_result['additional_parameters'] = " ".join(file_util.fake.sentences())
+        correct_result['notes'] = " ".join(file_util.fake.sentences())
+
+        correct_result['timing_file_sha1'] = self.temp_dict['timing_file_sha1']
+        correct_result['condition_file_sha1'] = self.temp_dict['condition_file_sha1']
+        correct_result['item_file_sha1'] = self.temp_dict['item_file_sha1']
+        self.temp_dict['correct_result'] = correct_result
+
+    def setup_cortex_exp_files(self):
+        # creating item file, condition file, timing file, and their sha.
+        self.temp_dict['experiment_name'] = "/".join(file_util.gen_filenames(random.randint(1, 2)))
+        self.temp_dict['timing_file_name'] = file_util.gen_filename_strict_lower() + '.tm'
+        self.temp_dict['condition_file_name'] = file_util.gen_filename_strict_lower() + '.cnd'
+        self.temp_dict['item_file_name'] = file_util.gen_filename_strict_lower() + '.itm'
+        filelist_full = [os.path.join(self.git_mock_info['git_repo_path'], self.temp_dict['experiment_name'], x) for x
+                         in [self.temp_dict['timing_file_name'],
+                             self.temp_dict['condition_file_name'],
+                             self.temp_dict['item_file_name']]]
+        file_util.create_files_from_filelist(filelist_full, local_data_dir='.')
+        with open(filelist_full[0], 'rb') as f:
+            self.temp_dict['timing_file_sha1'] = hashlib.sha1(f.read()).hexdigest()
+        with open(filelist_full[1], 'rb') as f:
+            self.temp_dict['condition_file_sha1'] = hashlib.sha1(f.read()).hexdigest()
+        with open(filelist_full[2], 'rb') as f:
+            self.temp_dict['item_file_sha1'] = hashlib.sha1(f.read()).hexdigest()
+        file_util.create_files_from_filelist(self.filelist_true, local_data_dir=self.site['prefix'])
 
     def get_new_instance(self):
         self.dirs_to_cleanup = file_util.gen_unique_local_paths(1)  # for git
@@ -46,57 +114,14 @@ class LeelabCortexExpAction(unittest.TestCase):
 
         for file in self.files_to_cleanup:
             self.assertFalse(os.path.exists(file))
-
-        # creating item file, condition file, timing file, and their sha.
-        self.temp_dict['experiment_name'] = "/".join(file_util.gen_filenames(random.randint(1, 2)))
-        self.temp_dict['timing_file_name'] = file_util.gen_filename_strict_lower() + '.tm'
-        self.temp_dict['condition_file_name'] = file_util.gen_filename_strict_lower() + '.cnd'
-        self.temp_dict['item_file_name'] = file_util.gen_filename_strict_lower() + '.itm'
-        filelist_full = [os.path.join(self.git_mock_info['git_repo_path'], self.temp_dict['experiment_name'], x) for x
-                         in [self.temp_dict['timing_file_name'],
-                             self.temp_dict['condition_file_name'],
-                             self.temp_dict['item_file_name']]]
-        file_util.create_files_from_filelist(filelist_full, local_data_dir='.')
-        with open(filelist_full[0], 'rb') as f:
-            self.temp_dict['timing_file_sha1'] = hashlib.sha1(f.read()).hexdigest()
-        with open(filelist_full[1], 'rb') as f:
-            self.temp_dict['condition_file_sha1'] = hashlib.sha1(f.read()).hexdigest()
-        with open(filelist_full[2], 'rb') as f:
-            self.temp_dict['item_file_sha1'] = hashlib.sha1(f.read()).hexdigest()
-        file_util.create_files_from_filelist(self.filelist_true, local_data_dir=self.site['prefix'])
-
-        # create the correct result.
-        self.temp_dict['correct_result'] = dict()
-        self.temp_dict['correct_result']['schema_revision'] = 1
-        self.temp_dict['correct_result']['code_repo'] = dict()
-        self.temp_dict['correct_result']['code_repo']['repo_url'] = self.git_mock_info['git_url']
-        self.temp_dict['correct_result']['code_repo']['repo_hash'] = self.git_mock_info['git_hash']
-        self.temp_dict['correct_result']['monkey'] = random.choice(monkeylist)
-        self.temp_dict['correct_result']['experiment_name'] = self.temp_dict['experiment_name']
-        self.temp_dict['correct_result']['timing_file_name'] = self.temp_dict['timing_file_name']
-        self.temp_dict['correct_result']['condition_file_name'] = self.temp_dict['condition_file_name']
-        self.temp_dict['correct_result']['item_file_name'] = self.temp_dict['item_file_name']
-        self.temp_dict['correct_result']['recorded_files'] = dict()
-        self.temp_dict['correct_result']['recorded_files']['site'] = self.site
-        self.temp_dict['correct_result']['recorded_files']['filelist'] = self.filelist_true
-        # TODO has some test case for this mapping stuff.
-        self.temp_dict['correct_result']['condition_stimulus_mapping'] = [
-            {"condition_number": 1, "stimuli": ["a1.ctx", "a2.ctx"]},
-            {"condition_number": 2, "stimuli": ["b1.ctx", "b2.ctx"]},
-            {"condition_number": 3, "stimuli": ["a1.ctx", "b2.ctx"]},
-            {"condition_number": 4, "stimuli": ["a2.ctx", "b1.ctx"]}
-        ]
-        self.temp_dict['correct_result']['additional_parameters'] = " ".join(file_util.fake.sentences())
-        self.temp_dict['correct_result']['notes'] = " ".join(file_util.fake.sentences())
-
-        self.temp_dict['correct_result']['timing_file_sha1'] = self.temp_dict['timing_file_sha1']
-        self.temp_dict['correct_result']['condition_file_sha1'] = self.temp_dict['condition_file_sha1']
-        self.temp_dict['correct_result']['item_file_sha1'] = self.temp_dict['item_file_sha1']
+        self.setup_cortex_exp_files()
+        self.get_correct_result()
 
     def remove_instance(self):
         file_util.rm_files_from_file_list(self.files_to_cleanup)
         file_util.rm_dirs_from_dir_list(self.dirs_to_cleanup)
         env_util.teardown_remote_site(self.site)
+        time.sleep(0.1)  # buffer time for removal
 
         for file in self.files_to_cleanup:
             self.assertFalse(os.path.exists(file))
