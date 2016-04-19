@@ -2,9 +2,7 @@ import json
 import os
 import pickle
 from abc import abstractmethod
-
 from bson import ObjectId
-
 from . import util
 from .base import Base
 from .db import DB
@@ -362,11 +360,11 @@ class DBAction(Action):
                 f.write(self.generate_query_doc_template())
             # TODO: add some non-interactive option to faciliate testing,
             # or use some tool to do it (probably 2nd is better for now)
-            input("Step 0 a query doc template is at {}, "
-                  "please finish it and press Enter".format(self.__query_template_path))
+            input("{} Step 0a a query doc template is at {}, "
+                  "please finish it and press Enter".format(self.class_identifier, self.__query_template_path))
         else:
-            input("the query doc is already at {},"
-                  "please confirm it and press Enter.".format(self.__query_template_path))
+            input("{} Step 0b the query doc is already at {},"
+                  "please confirm it and press Enter.".format(self.class_identifier, self.__query_template_path))
 
         assert os.path.exists(self.__query_template_path)
         self.__db_instance.connect()
@@ -511,12 +509,14 @@ class ManualDBActionWithSchema(DBActionWithSchema):
         :return:
         """
 
-        print("custom info from this action follows.")
+        print("custom info from this action follows.\n\n\n\n")
         print(self.custom_info())
+        print("\n\n\n\n")
         savepath = util.joinpath_norm(self.global_config['project_root'], self.config['savepath'])
         template_text = self.dbschema_instance.get_template()
         record = save_wait_and_load(template_text, savepath,
-                                    "Step 1 Enter to continue after finish editing and saving the tempalte...",
+                                    "{} Step 1 Enter to continue after editing and saving the template...".format(
+                                        self.class_identifier),
                                     load_json=True, overwrite=False)
         record = self.import_record_template(record)
         self.before_insert_record(record)

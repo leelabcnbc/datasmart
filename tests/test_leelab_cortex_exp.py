@@ -8,7 +8,7 @@ from functools import partial
 from subprocess import CalledProcessError
 import strict_rfc3339
 from jsonschema.exceptions import ValidationError
-from datasmart.actions.leelab.cortex_exp import CortexExpAction, CortexExpSchemaJSL
+from datasmart.actions.leelab.cortex_exp import CortexExpAction, CortexExpSchemaJSL, monkeylist
 from datasmart.core import schemautil
 from datasmart.core import util
 from test_util import env_util, mock_util, file_util
@@ -17,13 +17,15 @@ from test_util import env_util, mock_util, file_util
 class LeelabCortexExpAction(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        env_util.setup_db(cls, ('leelab', 'cortex_exp'))
+        env_util.setup_db(cls, CortexExpAction.table_path)
         with open("filetransfer_local_config.json.template", "rt") as f:
             filetransfer_config_text = f.read().format(getpass.getuser())
         env_util.setup_local_config(('core', 'filetransfer'), filetransfer_config_text)
 
     def setUp(self):
+        # I put setup here only to pass in reference to class for mock function.
         self.mock_function = partial(LeelabCortexExpAction.input_mock_function, instance=self)
+        self.config_path = CortexExpAction.config_path
 
     def get_new_instance(self):
         self.dirs_to_cleanup = file_util.gen_unique_local_paths(1)  # for git
@@ -39,6 +41,7 @@ class LeelabCortexExpAction(unittest.TestCase):
                                                      {'cortex_expt_repo_path': self.git_mock_info['git_repo_path'],
                                                       'savepath': self.savepath},
                                                      {'git': self.git_mock_info})
+        self.class_identifier = self.action.class_identifier
         self.files_to_cleanup = [self.savepath, 'query_template.py', 'prepare_result.p']
 
         for file in self.files_to_cleanup:
@@ -62,6 +65,34 @@ class LeelabCortexExpAction(unittest.TestCase):
             self.temp_dict['item_file_sha1'] = hashlib.sha1(f.read()).hexdigest()
         file_util.create_files_from_filelist(self.filelist_true, local_data_dir=self.site['prefix'])
 
+        # create the correct result.
+        self.temp_dict['correct_result'] = dict()
+        self.temp_dict['correct_result']['schema_revision'] = 1
+        self.temp_dict['correct_result']['code_repo'] = dict()
+        self.temp_dict['correct_result']['code_repo']['repo_url'] = self.git_mock_info['git_url']
+        self.temp_dict['correct_result']['code_repo']['repo_hash'] = self.git_mock_info['git_hash']
+        self.temp_dict['correct_result']['monkey'] = random.choice(monkeylist)
+        self.temp_dict['correct_result']['experiment_name'] = self.temp_dict['experiment_name']
+        self.temp_dict['correct_result']['timing_file_name'] = self.temp_dict['timing_file_name']
+        self.temp_dict['correct_result']['condition_file_name'] = self.temp_dict['condition_file_name']
+        self.temp_dict['correct_result']['item_file_name'] = self.temp_dict['item_file_name']
+        self.temp_dict['correct_result']['recorded_files'] = dict()
+        self.temp_dict['correct_result']['recorded_files']['site'] = self.site
+        self.temp_dict['correct_result']['recorded_files']['filelist'] = self.filelist_true
+        # TODO has some test case for this mapping stuff.
+        self.temp_dict['correct_result']['condition_stimulus_mapping'] = [
+            {"condition_number": 1, "stimuli": ["a1.ctx", "a2.ctx"]},
+            {"condition_number": 2, "stimuli": ["b1.ctx", "b2.ctx"]},
+            {"condition_number": 3, "stimuli": ["a1.ctx", "b2.ctx"]},
+            {"condition_number": 4, "stimuli": ["a2.ctx", "b1.ctx"]}
+        ]
+        self.temp_dict['correct_result']['additional_parameters'] = " ".join(file_util.fake.sentences())
+        self.temp_dict['correct_result']['notes'] = " ".join(file_util.fake.sentences())
+
+        self.temp_dict['correct_result']['timing_file_sha1'] = self.temp_dict['timing_file_sha1']
+        self.temp_dict['correct_result']['condition_file_sha1'] = self.temp_dict['condition_file_sha1']
+        self.temp_dict['correct_result']['item_file_sha1'] = self.temp_dict['item_file_sha1']
+
     def remove_instance(self):
         file_util.rm_files_from_file_list(self.files_to_cleanup)
         file_util.rm_dirs_from_dir_list(self.dirs_to_cleanup)
@@ -72,8 +103,7 @@ class LeelabCortexExpAction(unittest.TestCase):
 
     def tearDown(self):
         # drop and then reset
-        self.__class__.collection_client.drop()
-        self.__class__.collection_client = self.__class__.db_client['leelab']['cortex_exp']
+        env_util.reset_db(self.__class__, CortexExpAction.table_path)
 
     @classmethod
     def tearDownClass(cls):
@@ -103,45 +133,43 @@ class LeelabCortexExpAction(unittest.TestCase):
             self.get_new_instance()
             self.temp_dict['wrong_type'] = 'correct'
             mock_util.run_mocked_action(self.action, {'input': self.mock_function})
-            self.assertTrue(self.action.is_finished())
             self.assertEqual(len(self.action.result_ids), 1)
             result_id = self.action.result_ids[0]
-            result = self.__class__.collection_client.find_one({'_id': result_id})
-            self.assertIsNotNone(result)
-            self.assertEqual(result['timing_file_sha1'], self.temp_dict['timing_file_sha1'])
-            self.assertEqual(result['condition_file_sha1'], self.temp_dict['condition_file_sha1'])
-            self.assertEqual(result['item_file_sha1'], self.temp_dict['item_file_sha1'])
-            self.assertTrue(self.action.is_finished())
-            del result['timing_file_sha1']
-            del result['condition_file_sha1']
-            del result['item_file_sha1']
+            result = env_util.assert_found_and_return(self.__class__, [result_id])[0]
             del result['_id']
-            timestamp1 = result['timestamp'].timestamp()
-            result['timestamp'] = strict_rfc3339.timestamp_to_rfc3339_utcoffset(timestamp1)
+            correct_result = self.temp_dict['correct_result']
+            # for key in correct_result: # this for loop for of assert is easy to debug.
+            #     self.assertEqual(correct_result[key], result[key])
+            self.assertEqual(correct_result, result)
+            result['timestamp'] = strict_rfc3339.timestamp_to_rfc3339_utcoffset(result['timestamp'].timestamp())
+            del result['timing_file_sha1']
+            del result['item_file_sha1']
+            del result['condition_file_sha1']
             self.assertTrue(schemautil.validate(CortexExpSchemaJSL.get_schema(), result))
-            timestamp2 = util.rfc3339_to_timestamp(result['timestamp'])
-            self.assertLessEqual(abs(timestamp1 - timestamp2), 1.0)  # less than 1s in deviation. (pretty loose bound)
             self.action.revoke()
-            result = self.__class__.collection_client.find_one({'_id': result_id})
-            self.assertIsNone(result)
+            env_util.assert_not_found(self.__class__, [result_id])
             self.remove_instance()
 
     @staticmethod
     def input_mock_function(prompt: str, instance) -> str:
-        if prompt.startswith("Step 0"):
+        if prompt.startswith("{} Step 0a".format(instance.class_identifier)):
             pass
-        elif prompt.startswith("Step 1"):
+        elif prompt.startswith("{} Step 1".format(instance.class_identifier)):
             with open(instance.action.config['savepath'], 'rt') as f_old:
                 record = json.load(f_old)
 
             # first, fill in the correct stuff.
-            record['experiment_name'] = instance.temp_dict['experiment_name']
-            record['timing_file_name'] = instance.temp_dict['timing_file_name']
-            record['condition_file_name'] = instance.temp_dict['condition_file_name']
-            record['item_file_name'] = instance.temp_dict['item_file_name']
-            record['recorded_files']['site'] = instance.site
-            record['recorded_files']['filelist'] = instance.filelist_true
-
+            record['experiment_name'] = instance.temp_dict['correct_result']['experiment_name']
+            record['timing_file_name'] = instance.temp_dict['correct_result']['timing_file_name']
+            record['condition_file_name'] = instance.temp_dict['correct_result']['condition_file_name']
+            record['item_file_name'] = instance.temp_dict['correct_result']['item_file_name']
+            record['recorded_files'] = instance.temp_dict['correct_result']['recorded_files']
+            record['additional_parameters'] = instance.temp_dict['correct_result']['additional_parameters']
+            record['notes'] = instance.temp_dict['correct_result']['notes']
+            record['monkey'] = instance.temp_dict['correct_result']['monkey']
+            record['condition_stimulus_mapping'] = instance.temp_dict['correct_result']['condition_stimulus_mapping']
+            # now time to compute the correct time.
+            instance.temp_dict['correct_result']['timestamp'] = util.rfc3339_to_datetime(record['timestamp'])
             wrong_type = instance.temp_dict['wrong_type']
             if wrong_type == 'correct':
                 pass
@@ -152,11 +180,14 @@ class LeelabCortexExpAction(unittest.TestCase):
                 record['monkey'] = random.choice(
                     ['Koko', 'Frugo', 'Leo', 'demo', 'koKo', 'lEo', 'gaBBy', None, 123123, 2.4])
             elif wrong_type == 'nonexistent tm':
-                record['timing_file_name'] = 'a' + record['timing_file_name']
+                record['timing_file_name'] = file_util.gen_filename_strict_lower(
+                    os.path.splitext(record['timing_file_name'])[0]) + '.tm'
             elif wrong_type == 'nonexistent cnd':
-                record['condition_file_name'] = 'a' + record['condition_file_name']
+                record['condition_file_name'] = file_util.gen_filename_strict_lower(
+                    os.path.splitext(record['condition_file_name'])[0]) + '.cnd'
             elif wrong_type == 'nonexistent itm':
-                record['item_file_name'] = 'a' + record['item_file_name']
+                record['item_file_name'] = file_util.gen_filename_strict_lower(
+                    os.path.splitext(record['item_file_name'])[0]) + '.itm'
             elif wrong_type == 'nonexistent recording files':
                 record['recorded_files']['filelist'] = instance.filelist_false
             else:

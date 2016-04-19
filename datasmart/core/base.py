@@ -45,6 +45,10 @@ class Base(ABC):
         """
         return self.__class__.config_path
 
+    @property
+    def class_identifier(self) -> str:
+        return '[{}]'.format('.'.join(self.config_path))
+
     def set_config(self, config_new: dict) -> None:
         """ set new config, bypass postprocessing function :func:`Base.normalize_config`.
 

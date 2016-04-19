@@ -54,7 +54,7 @@ def normalize_filelist_relative(filelist: list, prefix='') -> list:
         assert b and (b != '.') and (b != '..'), "no trival file name like empty, ., or ..!"
     return ret_filelist
 
-
+# this is uncommented due to readthedocs' poor support of Python 3.5 features a while ago.
 # def load_config(module_name: tuple, filename='config.json', load_json=True) -> Union[dict,str]:
 def load_config(module_name: tuple, filename='config.json', load_json=True):
     """ load the config file for this module.

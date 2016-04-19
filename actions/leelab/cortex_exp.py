@@ -32,7 +32,7 @@ from datasmart.core import schemautil
 import os.path
 import hashlib
 import re
-
+monkeylist = ["leo", "koko", "gabby", "frugo"]
 
 class CortexExpSchemaConditionStimulusMappingJSL(jsl.Document):
     """helper class defining the json schema for condition-stimuli mapping"""
@@ -46,7 +46,7 @@ class CortexExpSchemaJSL(jsl.Document):
     """class defining json schema for a database record. See top of file"""
     schema_revision = jsl.IntField(enum=[1], required=True)  # the version of schema, in case we have drastic change
     timestamp = jsl.StringField(format="date-time", required=True)
-    monkey = jsl.StringField(enum=["leo", "koko", "gabby", "frugo"], required=True)
+    monkey = jsl.StringField(enum=monkeylist, required=True)
     code_repo = jsl.DocumentField(schemautil.GitRepoRef, required=True)
     experiment_name = jsl.StringField(required=True, pattern=schemautil.StringPatterns.relativePathPattern)
     timing_file_name = jsl.StringField(pattern=schemautil.StringPatterns.strictFilenameLowerPattern('tm'),
@@ -117,7 +117,7 @@ class CortexExpAction(ManualDBActionWithSchema):
 
     def custom_info(self) -> str:
         return "this is the DataSMART action for saving metadata for a CORTEX experiment.\n" \
-               "Please modify 'template.json' to your need"
+               "Please modify {} to your need".format(self.config['savepath'])
 
     def before_insert_record(self, record):
         print("check that files are really there...")

@@ -223,8 +223,7 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
             result['timestamp'] = strict_rfc3339.timestamp_to_rfc3339_utcoffset(result['timestamp'].timestamp())
             self.assertTrue(schemautil.validate(CortexExpSortedSchemaJSL.get_schema(), result))
             self.action.revoke()
-            result = self.__class__.collection_client.find_one({'_id': result_id})
-            self.assertIsNone(result)
+            self.assertEqual(self.__class__.collection_client.count({'_id': result_id}), 0)
             # make sure the whole folder is also removed.
             self.assertFalse(os.path.exists(joinpath_norm(self.remote_dir_root, self.remote_data_dir,
                                                           'leelab', 'cortex_exp_sorted', str(result_id))))

@@ -39,6 +39,7 @@ def run_mocked_action(action: Action, mock_options=None):
                 stack.enter_context(context)
         assert not action.is_prepared()
         action.run()
+        assert action.is_finished()
 
 
 def parse_mock_option(key: str, value: object):

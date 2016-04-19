@@ -29,10 +29,19 @@ def gen_filename():
     return candidate
 
 
-def gen_filename_strict_lower():
-    word_len = random.randint(1, 20)
+def gen_filename_strict_lower_inner(word_len):
     return (''.join(random.choice("abcdefghijklmnopqrstuvwxyz_-0123456789") for _ in
                     range(word_len)) + fake.file_extension()).strip()
+
+
+def gen_filename_strict_lower(different_from=None):
+    word_len = random.randint(1, 20)
+    if different_from is None:
+        different_from = []
+    candidate = gen_filename_strict_lower_inner(word_len)
+    while candidate in different_from:
+        candidate = gen_filename_strict_lower_inner(word_len)
+    return candidate
 
 
 def gen_filenames(n=100):
