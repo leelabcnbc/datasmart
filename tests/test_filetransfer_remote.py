@@ -4,7 +4,7 @@ import os.path
 import itertools
 from copy import deepcopy
 import datasmart.core.filetransfer
-import test_util
+from test_util import file_util
 import shutil
 import datasmart.core.util
 from datasmart.core import schemautil
@@ -22,17 +22,17 @@ class TestFileTransferRemote(unittest.TestCase):
         nas_ip_address = "localhost"
         numlist = (1, 5, 20)  # test 1 file, 5 files, and 20 files.
         for idx, filecount in enumerate(numlist):
-            filelist = test_util.gen_filelist(filecount, abs_path=False)
-            local_data_dir = " ".join(test_util.gen_filenames(3))
-            local_cache_dir = " ".join(test_util.gen_filenames(3))
-            remote_data_dir = " ".join(test_util.gen_filenames(3))
+            filelist = file_util.gen_filelist(filecount, abs_path=False)
+            local_data_dir = " ".join(file_util.gen_filenames(3))
+            local_cache_dir = " ".join(file_util.gen_filenames(3))
+            remote_data_dir = " ".join(file_util.gen_filenames(3))
 
-            subdirs_push = test_util.gen_filenames(3)
-            subdirs_fetch = test_util.gen_filenames(3)
-            dest_append_prefix = test_util.gen_filenames(3)
+            subdirs_push = file_util.gen_filenames(3)
+            subdirs_fetch = file_util.gen_filenames(3)
+            dest_append_prefix = file_util.gen_filenames(3)
 
-            local_map_dir_root = " ".join(test_util.gen_filenames(3))
-            remote_dir_root = " ".join(test_util.gen_filenames(3))
+            local_map_dir_root = " ".join(file_util.gen_filenames(3))
+            remote_dir_root = " ".join(file_util.gen_filenames(3))
 
             # check that all of them are different.
             assert len({local_data_dir, local_cache_dir, remote_data_dir, local_map_dir_root, remote_dir_root}) == len(
@@ -163,7 +163,7 @@ class TestFileTransferRemote(unittest.TestCase):
             assert not os.path.exists(local_data_dir)
             os.mkdir(local_data_dir)
             # ok. Now time to create files in local data
-            test_util.create_files_from_filelist(filelist, local_data_dir, subdirs_this=subdirs_push)
+            file_util.create_files_from_filelist(filelist, local_data_dir, subdirs_this=subdirs_push)
 
             config_temp = deepcopy(filetransfer.config)
             if not map_push:

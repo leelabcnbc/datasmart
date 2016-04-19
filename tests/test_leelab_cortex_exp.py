@@ -1,123 +1,84 @@
-import unittest
-import unittest.mock as mock
-import test_util
-from test_util import MockNames
-import os
-import shutil
-from datasmart.actions.leelab.cortex_exp import CortexExpAction, CortexExpSchemaJSL
-import pymongo
-import json
-from functools import partial
-from jsonschema.exceptions import ValidationError
-import random
-from subprocess import CalledProcessError
-import hashlib
-from datasmart.core.util import joinpath_norm
 import getpass
+import hashlib
+import json
+import os
+import random
+import unittest
+from functools import partial
+from subprocess import CalledProcessError
+import strict_rfc3339
+from jsonschema.exceptions import ValidationError
+from datasmart.actions.leelab.cortex_exp import CortexExpAction, CortexExpSchemaJSL
 from datasmart.core import schemautil
 from datasmart.core import util
-import strict_rfc3339
+from test_util import env_util, mock_util, file_util
 
 
 class LeelabCortexExpAction(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        # link to pymongo
-        cls.db_client = pymongo.MongoClient()
-        cls.collection_client = cls.db_client['leelab']['cortex_exp']
-        assert not os.path.exists("config")
+        env_util.setup_db(cls, ('leelab', 'cortex_exp'))
         with open("filetransfer_local_config.json.template", "rt") as f:
             filetransfer_config_text = f.read().format(getpass.getuser())
-        os.makedirs("config/core/filetransfer")
-        with open("config/core/filetransfer/config.json", "wt") as f:
-            f.write(filetransfer_config_text)
+        env_util.setup_local_config(('core', 'filetransfer'), filetransfer_config_text)
 
     def setUp(self):
-        self.git_url = 'http://git.example.com'
-        self.git_hash = '0000000000000000000000000000000000000000'
-        self.git_repo_path = " ".join(test_util.gen_filenames(3))
-        self.savepath = " ".join(test_util.gen_filenames(3))
-        self.assertNotEqual(self.git_repo_path, self.savepath)  # should be (almost) always true
-        self.temp_dict = {}
         self.mock_function = partial(LeelabCortexExpAction.input_mock_function, instance=self)
 
-        # create git_repo_path.
-        os.makedirs(self.git_repo_path)
-
-        self.assertFalse(os.path.exists(self.savepath))
-        self.assertFalse(os.path.exists('query_template.py'))
-        self.assertFalse(os.path.exists('prepare_result.p'))
-
-        #
-        self.remote_dir_root = os.path.abspath(" ".join(test_util.gen_filenames(3)))
-        filelist = test_util.gen_filelist(100, abs_path=False)
+    def get_new_instance(self):
+        self.dirs_to_cleanup = file_util.gen_unique_local_paths(1)  # for git
+        file_util.create_dirs_from_dir_list(self.dirs_to_cleanup)
+        self.git_mock_info = mock_util.setup_git_mock(git_repo_path=self.dirs_to_cleanup[0])
+        self.savepath = file_util.gen_unique_local_paths(1)[0]
+        self.temp_dict = {}
+        self.site = env_util.setup_remote_site()
+        filelist = file_util.gen_filelist(100, abs_path=False)
         self.filelist_true = filelist[:50]
         self.filelist_false = filelist[50:]
-        self.assertFalse(os.path.exists(self.remote_dir_root))
-        os.makedirs(self.remote_dir_root)
-        self.remote_data_dir = " ".join(test_util.gen_filenames(3))
+        self.action = mock_util.create_mocked_action(CortexExpAction,
+                                                     {'cortex_expt_repo_path': self.git_mock_info['git_repo_path'],
+                                                      'savepath': self.savepath},
+                                                     {'git': self.git_mock_info})
+        self.files_to_cleanup = [self.savepath, 'query_template.py', 'prepare_result.p']
 
-        self.site = {
-            "path": "localhost",
-            "prefix": joinpath_norm(self.remote_dir_root, self.remote_data_dir),
-            "local": False
-        }
+        for file in self.files_to_cleanup:
+            self.assertFalse(os.path.exists(file))
 
-    def get_new_instance(self):
-        with mock.patch(MockNames.git_repo_url, return_value=self.git_url), mock.patch(
-                MockNames.git_repo_hash, return_value=self.git_hash), mock.patch(
-            MockNames.git_check_clean, return_value=True):
-            self.action = CortexExpAction(CortexExpAction.normalize_config({'cortex_expt_repo_path': self.git_repo_path,
-                                                                            'savepath': self.savepath}))
-        self.assertEqual(self.action.config,
-                         {'cortex_expt_repo_path': self.git_repo_path,
-                          'cortex_expt_repo_hash': self.git_hash,
-                          'cortex_expt_repo_url': self.git_url, 'savepath': self.savepath})
-
-        self.assertFalse(os.path.exists(self.savepath))
-        self.assertFalse(os.path.exists('query_template.py'))
-        self.assertFalse(os.path.exists('prepare_result.p'))
-
-        self.temp_dict['experiment_name'] = "/".join(test_util.gen_filenames(random.randint(1, 2)))
-        self.temp_dict['timing_file_name'] = test_util.gen_filename_strict_lower() + '.tm'
-        self.temp_dict['condition_file_name'] = test_util.gen_filename_strict_lower() + '.cnd'
-        self.temp_dict['item_file_name'] = test_util.gen_filename_strict_lower() + '.itm'
-        filelist_full = [os.path.join(self.git_repo_path, self.temp_dict['experiment_name'],
-                                      x) for x in [self.temp_dict['timing_file_name'],
-                                                   self.temp_dict['condition_file_name'],
-                                                   self.temp_dict['item_file_name']]]
-        test_util.create_files_from_filelist(filelist_full, local_data_dir='.')
-
+        # creating item file, condition file, timing file, and their sha.
+        self.temp_dict['experiment_name'] = "/".join(file_util.gen_filenames(random.randint(1, 2)))
+        self.temp_dict['timing_file_name'] = file_util.gen_filename_strict_lower() + '.tm'
+        self.temp_dict['condition_file_name'] = file_util.gen_filename_strict_lower() + '.cnd'
+        self.temp_dict['item_file_name'] = file_util.gen_filename_strict_lower() + '.itm'
+        filelist_full = [os.path.join(self.git_mock_info['git_repo_path'], self.temp_dict['experiment_name'], x) for x
+                         in [self.temp_dict['timing_file_name'],
+                             self.temp_dict['condition_file_name'],
+                             self.temp_dict['item_file_name']]]
+        file_util.create_files_from_filelist(filelist_full, local_data_dir='.')
         with open(filelist_full[0], 'rb') as f:
             self.temp_dict['timing_file_sha1'] = hashlib.sha1(f.read()).hexdigest()
         with open(filelist_full[1], 'rb') as f:
             self.temp_dict['condition_file_sha1'] = hashlib.sha1(f.read()).hexdigest()
         with open(filelist_full[2], 'rb') as f:
             self.temp_dict['item_file_sha1'] = hashlib.sha1(f.read()).hexdigest()
-        test_util.create_files_from_filelist(self.filelist_true, local_data_dir=self.site['prefix'])
+        file_util.create_files_from_filelist(self.filelist_true, local_data_dir=self.site['prefix'])
 
     def remove_instance(self):
-        os.remove(self.savepath)
-        os.remove('query_template.py')
-        os.remove('prepare_result.p')
-        shutil.rmtree(os.path.join(self.git_repo_path, self.temp_dict['experiment_name']))
-        shutil.rmtree(self.site['prefix'])
+        file_util.rm_files_from_file_list(self.files_to_cleanup)
+        file_util.rm_dirs_from_dir_list(self.dirs_to_cleanup)
+        env_util.teardown_remote_site(self.site)
+
+        for file in self.files_to_cleanup:
+            self.assertFalse(os.path.exists(file))
 
     def tearDown(self):
-        self.assertFalse(os.path.exists(self.savepath))
-        self.assertFalse(os.path.exists('query_template.py'))
-        self.assertFalse(os.path.exists('prepare_result.p'))
-        shutil.rmtree(self.git_repo_path)
-        shutil.rmtree(self.remote_dir_root)
         # drop and then reset
         self.__class__.collection_client.drop()
         self.__class__.collection_client = self.__class__.db_client['leelab']['cortex_exp']
 
     @classmethod
     def tearDownClass(cls):
-        cls.collection_client.drop()
-        cls.db_client.close()
-        shutil.rmtree("config")
+        env_util.teardown_db(cls)
+        env_util.teardown_local_config()
 
     def test_insert_wrong_stuff(self):
         wrong_types = ['missing field', 'wrong monkey',
@@ -128,13 +89,11 @@ class LeelabCortexExpAction(unittest.TestCase):
                           ".tm doesn't exist!", ".itm doesn't exist!", ".cnd doesn't exist!", None]
 
         for wrong_type, exception_type, exception_msg in zip(wrong_types, exception_types, exception_msgs):
-            self.temp_dict['wrong_type'] = wrong_type
             for _ in range(20):
                 self.get_new_instance()
-                with mock.patch('builtins.input', side_effect=self.mock_function):
-                    with self.assertRaises(exception_type) as exp_instance:
-                        self.assertFalse(self.action.is_prepared())
-                        self.action.run()
+                self.temp_dict['wrong_type'] = wrong_type
+                with self.assertRaises(exception_type) as exp_instance:
+                    mock_util.run_mocked_action(self.action, {'input': self.mock_function})
                 if exception_msg is not None:
                     self.assertNotEqual(exp_instance.exception.args[0].find(exception_msg), -1)
                 self.remove_instance()
@@ -143,9 +102,7 @@ class LeelabCortexExpAction(unittest.TestCase):
         for _ in range(100):
             self.get_new_instance()
             self.temp_dict['wrong_type'] = 'correct'
-            with mock.patch('builtins.input', side_effect=self.mock_function):
-                self.assertFalse(self.action.is_prepared())
-                self.action.run()
+            mock_util.run_mocked_action(self.action, {'input': self.mock_function})
             self.assertTrue(self.action.is_finished())
             self.assertEqual(len(self.action.result_ids), 1)
             result_id = self.action.result_ids[0]

@@ -1,8 +1,8 @@
 import unittest
 from datasmart.actions.leelab.cortex_exp_sorted import CortexExpSortedAction, CortexExpSortedSchemaJSL
 import unittest.mock as mock
-import test_util
-from test_util import MockNames
+from test_util import file_util
+from test_util.mock_util import MockNames
 import os
 import shutil
 import pymongo
@@ -32,8 +32,8 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
     def setUp(self):
         self.git_url = 'http://git.example.com'
         self.git_hash = '0000000000000000000000000000000000000000'
-        self.git_repo_path = " ".join(test_util.gen_filenames(3))
-        self.savepath = " ".join(test_util.gen_filenames(3))
+        self.git_repo_path = " ".join(file_util.gen_filenames(3))
+        self.savepath = " ".join(file_util.gen_filenames(3))
         self.assertNotEqual(self.git_repo_path, self.savepath)  # should be (almost) always true
         self.temp_dict = {}
         self.mock_function = partial(LeelabCortexExpSortedAction.input_mock_function, instance=self)
@@ -48,8 +48,8 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
         with open(os.path.join(self.git_repo_path, 'spikesort.tar.gz'), 'wt') as f:
             f.close()
 
-        self.remote_dir_root = os.path.abspath(" ".join(test_util.gen_filenames(3)))
-        filelist = test_util.gen_filelist(100, abs_path=False)
+        self.remote_dir_root = os.path.abspath(" ".join(file_util.gen_filenames(3)))
+        filelist = file_util.gen_filelist(100, abs_path=False)
         self.filelist_nev = [f + '.nev' for f in filelist[:50]]
         self.filelist_nonev = filelist[50:]
         for f in self.filelist_nonev:
@@ -57,8 +57,8 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
         self.assertFalse(os.path.exists(self.remote_dir_root))
         os.makedirs(self.remote_dir_root)
 
-        self.remote_data_dir = " ".join(test_util.gen_filenames(3))
-        self.remote_data_dir_rawdata = " ".join(test_util.gen_filenames(3))
+        self.remote_data_dir = " ".join(file_util.gen_filenames(3))
+        self.remote_data_dir_rawdata = " ".join(file_util.gen_filenames(3))
         self.assertNotEqual(self.remote_data_dir, self.remote_data_dir_rawdata)
 
         os.makedirs(os.path.join(self.remote_dir_root, self.remote_data_dir, 'leelab', 'cortex_exp_sorted'))
@@ -92,9 +92,9 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
             "local_fetch_option": "copy"
         }
         with open("config/core/filetransfer/config.json", "wt") as f:
-            json.dump(file_transfer_config,f)
+            json.dump(file_transfer_config, f)
 
-        test_util.create_files_from_filelist(self.filelist_nev + self.filelist_nonev,
+        file_util.create_files_from_filelist(self.filelist_nev + self.filelist_nonev,
                                              local_data_dir=joinpath_norm(self.remote_dir_root,
                                                                           self.remote_data_dir_rawdata))
         self.system_info_file = os.path.join(self.__class__.local_save_dir, 'system_info')
@@ -155,8 +155,8 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
         main_script = util.load_config(self.action.__class__.config_path, 'sacbatch_and_spikesort_script.sh',
                                        load_json=False)
 
-        self.temp_dict['correct_result']['sort_config']['system_info'] = " ".join(test_util.fake.sentences())
-        self.temp_dict['correct_result']['sort_config']['sacbatch_output'] = " ".join(test_util.fake.sentences())
+        self.temp_dict['correct_result']['sort_config']['system_info'] = " ".join(file_util.fake.sentences())
+        self.temp_dict['correct_result']['sort_config']['sacbatch_output'] = " ".join(file_util.fake.sentences())
         self.temp_dict['correct_result']['sort_config']['action_config'] = deepcopy(self.action.config)
         self.temp_dict['correct_result']['sort_config']['sacbatch_file'] = 'SAC_batch_summer.tar.gz'
         self.temp_dict['correct_result']['sort_config']['spikesort_file'] = 'spikesort.tar.gz'
@@ -164,7 +164,7 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
         self.temp_dict['correct_result']['sort_config']['spikesort_script'] = spikesort_script
         self.temp_dict['correct_result']['sort_config']['master_script'] = main_script
         self.temp_dict['correct_result']['sort_person'] = 'Ge Huang'
-        self.temp_dict['correct_result']['notes'] = " ".join(test_util.fake.sentences())
+        self.temp_dict['correct_result']['notes'] = " ".join(file_util.fake.sentences())
 
         self.temp_dict['timestamp_str'] = util.now_to_rfc3339_localoffset()
         # this is UTC.
@@ -211,7 +211,7 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
 
             # now time to augment correct result
             correct_result = self.temp_dict['correct_result']
-            computed_append_prefix = os.path.join('leelab','cortex_exp_sorted',str(result_id))
+            computed_append_prefix = os.path.join('leelab', 'cortex_exp_sorted', str(result_id))
             correct_result['sorted_files']['site']['append_prefix'] = computed_append_prefix
             correct_result['sorted_files']['filelist'] = [util.joinpath_norm(computed_append_prefix, f) for f in
                                                           correct_result['sorted_files']['filelist']]

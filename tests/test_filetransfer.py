@@ -5,7 +5,7 @@ it's asssumed that datajoin package can be found now, probably by playing with P
 import unittest
 import shutil
 import os
-import test_util
+from test_util import file_util
 import datasmart.core.filetransfer
 import datasmart.core.util
 from datasmart.core import schemautil
@@ -25,11 +25,11 @@ class TestFileTransferLocal(unittest.TestCase):
             "local_fetch_option": "copy"
         }
 
-        self.local_data_dir = " ".join(test_util.gen_filenames(3))
-        self.default_site_path = " ".join(test_util.gen_filenames(3))
-        self.external_site = " ".join(test_util.gen_filenames(3))
-        self.subdirs = test_util.gen_filenames(3)
-        self.dest_append_prefix = test_util.gen_filenames(3)
+        self.local_data_dir = " ".join(file_util.gen_filenames(3))
+        self.default_site_path = " ".join(file_util.gen_filenames(3))
+        self.external_site = " ".join(file_util.gen_filenames(3))
+        self.subdirs = file_util.gen_filenames(3)
+        self.dest_append_prefix = file_util.gen_filenames(3)
 
         # check that all of them are different.
         assert len({self.local_data_dir, self.default_site_path, self.external_site}) == len(
@@ -49,7 +49,7 @@ class TestFileTransferLocal(unittest.TestCase):
             subdirs_this, relative, dest_append_prefix, filecount = x
             with self.subTest(subdirs_this=subdirs_this, relative=relative, dest_append_prefix=dest_append_prefix,
                               filecount = filecount):
-                self.filelist = test_util.gen_filelist(filecount, abs_path=False)
+                self.filelist = file_util.gen_filelist(filecount, abs_path=False)
                 self.assertFalse(os.path.exists(self.local_data_dir))
                 os.mkdir(self.local_data_dir)
                 self.assertFalse(os.path.exists(self.default_site_path))
@@ -66,7 +66,7 @@ class TestFileTransferLocal(unittest.TestCase):
         for x in itertools.product([self.subdirs, None], [True, False], [1,100]):
             subdirs_this, relative, filecount= x
             with self.subTest(subdirs_this=subdirs_this, relative=relative, filecount=filecount):
-                self.filelist = test_util.gen_filelist(filecount, abs_path=False)
+                self.filelist = file_util.gen_filelist(filecount, abs_path=False)
                 self.assertFalse(os.path.exists(self.local_data_dir))
                 os.mkdir(self.local_data_dir)
                 self.assertFalse(os.path.exists(self.external_site))
@@ -82,7 +82,7 @@ class TestFileTransferLocal(unittest.TestCase):
     def local_fetch(self, subdirs_this=None, relative=True):
         # test local fetch, so create external and local data dir
         # ok. Now time to create files in external.
-        test_util.create_files_from_filelist(self.filelist, self.external_site)
+        file_util.create_files_from_filelist(self.filelist, self.external_site)
         ret = self.filetransfer.fetch(filelist=self.filelist, src_site={'path': self.external_site, 'local': True},
                                       relative=relative,
                                       subdirs=subdirs_this)
@@ -162,7 +162,7 @@ class TestFileTransferLocal(unittest.TestCase):
             # ok, if dest_append_prefix has more than 2 levels, create all intermediate directories except for last one.
             os.makedirs(os.path.join(*([self.default_site_path] + dest_append_prefix[:-1])))
         # ok. Now time to create files in local data sub dirs.
-        test_util.create_files_from_filelist(self.filelist, self.local_data_dir, subdirs_this)
+        file_util.create_files_from_filelist(self.filelist, self.local_data_dir, subdirs_this)
 
         ret = self.filetransfer.push(filelist=self.filelist, relative=relative, subdirs=subdirs_this,
                                      dest_append_prefix=dest_append_prefix)

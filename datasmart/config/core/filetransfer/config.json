@@ -5,10 +5,6 @@
   "site_mapping_fetch": [
   ],
   "remote_site_config": {
-    "raptor.cnbc.cmu.edu": {
-      "ssh_username": "leelab",
-      "ssh_port": 22
-    },
     "localhost": {
       "ssh_username": "yourname",
       "ssh_port": 22
