@@ -6,34 +6,54 @@ import shutil
 import pymongo
 from . import file_util
 
-def setup_db(cls_obj: TestCase, table_path: tuple):
-    assert len(table_path) == 2, "must be a valid table path for MongoDB!"
+def setup_db(cls_obj: TestCase, table_paths: list):
+
     cls_obj.db_client = pymongo.MongoClient()
-    cls_obj.collection_client = cls_obj.db_client[table_path[0]][table_path[1]]
+    cls_obj.collection_clients = dict()
+    for table_path in table_paths:
+        assert len(table_path) == 2, "must be a valid table path for MongoDB!"
+        cls_obj.collection_clients[table_path] = cls_obj.db_client[table_path[0]][table_path[1]]
 
 
 def teardown_db(cls_obj: TestCase):
-    cls_obj.collection_client.drop()
+    for client in cls_obj.collection_clients.values():
+        client.drop()
     cls_obj.db_client.close()
 
 
-def assert_found_and_return(cls_obj: TestCase, result_ids):
+def assert_found_and_return(cls_obj: TestCase, result_ids, client_key=None):
     result_list = []
+
+    if client_key is None:
+        assert len(cls_obj.collection_clients) == 1
+        collection_client = list(cls_obj.collection_clients.values())[0]
+    else:
+        collection_client = cls_obj.collection_clients[client_key]
+
     for _id in result_ids:
-        result = cls_obj.collection_client.find_one({'_id': _id})
+        result = collection_client.find_one({'_id': _id})
         assert result is not None
         result_list.append(result)
     return result_list
 
-def assert_not_found(cls_obj: TestCase, result_ids):
+def assert_not_found(cls_obj: TestCase, result_ids, client_key=None):
+    if client_key is None:
+        assert len(cls_obj.collection_clients) == 1
+        collection_client = list(cls_obj.collection_clients.values())[0]
+    else:
+        collection_client = cls_obj.collection_clients[client_key]
+
+
     for _id in result_ids:
-        assert cls_obj.collection_client.count({'_id': _id}) == 0, "something is not supposed in db!"
+        assert collection_client.count({'_id': _id}) == 0, "something is not supposed in db!"
 
 
 def reset_db(cls_obj: TestCase, table_path: tuple):
     assert len(table_path) == 2, "must be a valid table path for MongoDB!"
-    cls_obj.collection_client.drop()
-    cls_obj.collection_client = cls_obj.db_client[table_path[0]][table_path[1]]
+
+    for key in cls_obj.collection_clients:
+        cls_obj.collection_clients[key].drop()
+        cls_obj.collection_clients[key] = cls_obj.db_client[key[0]][key[1]]
 
 
 def setup_local_config(config_path: tuple, config_text: str, first_time: bool = True):

@@ -89,10 +89,13 @@ def rm_dirs_from_dir_list(dir_list):
         shutil.rmtree(dir)
 
 
-def rm_files_from_file_list(file_list):
+def rm_files_from_file_list(file_list, must_exist=True):
     for file in file_list:
-        assert os.path.isfile(file)
-        os.remove(file)
+        if must_exist or os.path.exists(file):
+            assert os.path.isfile(file)
+            os.remove(file)
+
+
 
 
 def create_files_from_filelist(filelist, local_data_dir, subdirs_this=None):

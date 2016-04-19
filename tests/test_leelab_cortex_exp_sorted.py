@@ -1,11 +1,6 @@
 import unittest
-from datasmart.actions.leelab.cortex_exp_sorted import CortexExpSortedAction, CortexExpSortedSchemaJSL
-import unittest.mock as mock
-from test_util import file_util
-from test_util.mock_util import MockNames
+from datasmart.actions.leelab.cortex_exp_sorted import CortexExpSortedAction, CortexExpSortedSchemaJSL, sort_people
 import os
-import shutil
-import pymongo
 import json
 from functools import partial
 import random
@@ -17,66 +12,57 @@ import strict_rfc3339
 from bson import ObjectId
 from copy import deepcopy
 
+from test_util import mock_util, env_util, file_util
+
 
 class LeelabCortexExpSortedAction(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # link to pymongo
-        cls.db_client = pymongo.MongoClient()
-        cls.collection_client = cls.db_client['leelab']['cortex_exp_sorted']
+        cls.collection_raw_key = ('temp', 'temp')
+        env_util.setup_db(cls, [CortexExpSortedAction.table_path, cls.collection_raw_key])
         assert not os.path.exists("config")
         os.makedirs("config/core/filetransfer")
         cls.local_save_dir = '_data'  # this is the one used in the filetransfer config template.
-        cls.collection_client_raw = cls.db_client['temp']['temp']
 
     def setUp(self):
-        self.git_url = 'http://git.example.com'
-        self.git_hash = '0000000000000000000000000000000000000000'
-        self.git_repo_path = " ".join(file_util.gen_filenames(3))
-        self.savepath = " ".join(file_util.gen_filenames(3))
-        self.assertNotEqual(self.git_repo_path, self.savepath)  # should be (almost) always true
-        self.temp_dict = {}
         self.mock_function = partial(LeelabCortexExpSortedAction.input_mock_function, instance=self)
-        self.assertFalse(os.path.exists(self.savepath))
-        self.assertFalse(os.path.exists('query_template.py'))
-        self.assertFalse(os.path.exists('prepare_result.p'))
 
-        # create git_repo_path.
-        os.makedirs(self.git_repo_path)
-        with open(os.path.join(self.git_repo_path, 'SAC_batch_summer.tar.gz'), 'wt') as f:
+    def generate_files_for_sac_batch(self):
+        # create files for sort
+        with open(os.path.join(self.git_mock_info['git_repo_path'], 'SAC_batch_summer.tar.gz'), 'wt') as f:
             f.close()
-        with open(os.path.join(self.git_repo_path, 'spikesort.tar.gz'), 'wt') as f:
+        with open(os.path.join(self.git_mock_info['git_repo_path'], 'spikesort.tar.gz'), 'wt') as f:
             f.close()
 
-        self.remote_dir_root = os.path.abspath(" ".join(file_util.gen_filenames(3)))
+    def get_new_instance(self):
+        self.git_repo_path = " ".join(file_util.gen_filenames(3))
+        self.dirs_to_cleanup = file_util.gen_unique_local_paths(1)  # 1 for git
+        file_util.create_dirs_from_dir_list(self.dirs_to_cleanup)
+        self.git_mock_info = mock_util.setup_git_mock(git_repo_path=self.dirs_to_cleanup[0])
+        self.savepath = file_util.gen_unique_local_paths(1)[0]
+        self.temp_dict = {}
+        self.site = env_util.setup_remote_site(['leelab', 'cortex_exp_sorted'])
+        self.site_raw = env_util.setup_remote_site()
+        self.action = mock_util.create_mocked_action(CortexExpSortedAction,
+                                                     {'spike_sorting_software_repo_path': self.git_mock_info[
+                                                         'git_repo_path'],
+                                                      'savepath': self.savepath},
+                                                     {'git': self.git_mock_info})
+
+        # generate files to fetch for SAC batch.
+        self.generate_files_for_sac_batch()
+
         filelist = file_util.gen_filelist(100, abs_path=False)
         self.filelist_nev = [f + '.nev' for f in filelist[:50]]
         self.filelist_nonev = filelist[50:]
         for f in self.filelist_nonev:
+            # make sure false files don't end with nev. this should be correct, since that fake library doesn't produce
+            # .nev names.
             self.assertFalse(f.lower().endswith('.nev'))
-        self.assertFalse(os.path.exists(self.remote_dir_root))
-        os.makedirs(self.remote_dir_root)
-
-        self.remote_data_dir = " ".join(file_util.gen_filenames(3))
-        self.remote_data_dir_rawdata = " ".join(file_util.gen_filenames(3))
-        self.assertNotEqual(self.remote_data_dir, self.remote_data_dir_rawdata)
-
-        os.makedirs(os.path.join(self.remote_dir_root, self.remote_data_dir, 'leelab', 'cortex_exp_sorted'))
-
-        self.site = {
-            "path": "localhost",
-            "prefix": joinpath_norm(self.remote_dir_root, self.remote_data_dir),
-            "local": False
-        }
-
-        self.siteRaw = {
-            "path": "localhost",
-            "prefix": joinpath_norm(self.remote_dir_root, self.remote_data_dir_rawdata),
-            "local": False
-        }
 
         file_transfer_config = {
-            "local_data_dir": "_data",
+            "local_data_dir": self.__class__.local_save_dir,
             "site_mapping_push": [
             ],
             "site_mapping_fetch": [
@@ -91,53 +77,45 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
             "quiet": True,
             "local_fetch_option": "copy"
         }
+        # write the particular site config.
         with open("config/core/filetransfer/config.json", "wt") as f:
             json.dump(file_transfer_config, f)
 
         file_util.create_files_from_filelist(self.filelist_nev + self.filelist_nonev,
-                                             local_data_dir=joinpath_norm(self.remote_dir_root,
-                                                                          self.remote_data_dir_rawdata))
+                                             local_data_dir=self.site_raw['prefix'])
         self.system_info_file = os.path.join(self.__class__.local_save_dir, 'system_info')
         self.sacbatch_output_file = os.path.join(self.__class__.local_save_dir, 'sacbatch_output')
 
-    def get_new_instance(self):
-        with mock.patch(MockNames.git_repo_url, return_value=self.git_url), mock.patch(
-                MockNames.git_repo_hash, return_value=self.git_hash), mock.patch(
-            MockNames.git_check_clean, return_value=True):
-            self.action = CortexExpSortedAction(
-                CortexExpSortedAction.normalize_config({'spike_sorting_software_repo_path': self.git_repo_path,
-                                                        'savepath': self.savepath}))
-        self.assertEqual(self.action.config,
-                         {'spike_sorting_software_repo_path': self.git_repo_path,
-                          'spike_sorting_software_repo_hash': self.git_hash,
-                          'spike_sorting_software_repo_url': self.git_url,
-                          'savepath': self.savepath})
-
-        self.assertFalse(os.path.exists(self.savepath))
-        self.assertFalse(os.path.exists('query_template.py'))
-        self.assertFalse(os.path.exists('prepare_result.p'))
+        self.class_identifier = self.action.class_identifier
+        self.files_to_cleanup = [self.savepath, 'query_template.py', 'prepare_result.p',
+                                 self.system_info_file, self.sacbatch_output_file] + \
+                                [os.path.join(self.__class__.local_save_dir, os.path.basename(x)) for x in self.filelist_nev]
+        for file in self.files_to_cleanup:
+            self.assertFalse(os.path.exists(file))
 
         self.temp_dict['old_result'] = dict()
         self.temp_dict['old_result']['_id'] = ObjectId()
         self.temp_dict['old_result']['recorded_files'] = {}
-        self.temp_dict['old_result']['recorded_files']['site'] = self.siteRaw
-        self.filelist_this = random.sample(self.filelist_nev, 10) + random.sample(self.filelist_nonev, 10)
+        self.temp_dict['old_result']['recorded_files']['site'] = self.site_raw
+        self.filelist_this = self.filelist_nev + self.filelist_nonev
         random.shuffle(self.filelist_this)
         self.temp_dict['old_result']['recorded_files']['filelist'] = self.filelist_this
 
         # insert this doc in the DB.
-        assert self.__class__.collection_client_raw.insert_one(self.temp_dict['old_result']).acknowledged
+        assert self.__class__.collection_clients[self.__class__.collection_raw_key].insert_one(
+            self.temp_dict['old_result']).acknowledged
 
         self.temp_dict['correct_result'] = dict()
         self.temp_dict['correct_result']['schema_revision'] = 1
         self.temp_dict['correct_result']['cortex_exp_ref'] = self.temp_dict['old_result']['_id']
         self.temp_dict['correct_result']['files_to_sort'] = dict()
-        self.temp_dict['correct_result']['files_to_sort']['site'] = self.siteRaw
+        self.temp_dict['correct_result']['files_to_sort']['site'] = self.site_raw
         self.temp_dict['correct_result']['files_to_sort']['filelist'] = [f for f in self.filelist_this if
                                                                          f.lower().endswith('.nev')]
         # this field need updating later, to incorporate results inserted.
         self.temp_dict['correct_result']['sorted_files'] = dict()
-        self.temp_dict['correct_result']['sorted_files']['site'] = deepcopy(self.site)
+        self.temp_dict['correct_result']['sorted_files']['site'] = deepcopy(
+            self.site)  # don't interfere with my original site.
         self.temp_dict['correct_result']['sorted_files']['filelist'] = [os.path.basename(f) for f in self.filelist_this
                                                                         if f.lower().endswith('.nev')]
 
@@ -163,52 +141,36 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
         self.temp_dict['correct_result']['sort_config']['sacbatch_script'] = sacbatch_script
         self.temp_dict['correct_result']['sort_config']['spikesort_script'] = spikesort_script
         self.temp_dict['correct_result']['sort_config']['master_script'] = main_script
-        self.temp_dict['correct_result']['sort_person'] = 'Ge Huang'
+        self.temp_dict['correct_result']['sort_person'] = random.choice(sort_people)
         self.temp_dict['correct_result']['notes'] = " ".join(file_util.fake.sentences())
 
-        self.temp_dict['timestamp_str'] = util.now_to_rfc3339_localoffset()
-        # this is UTC.
-        self.temp_dict['correct_result']['timestamp'] = util.rfc3339_to_datetime(self.temp_dict['timestamp_str'])
-
     def remove_instance(self):
-        os.remove(self.savepath)
-        os.remove('query_template.py')
-        os.remove('prepare_result.p')
+        file_util.rm_files_from_file_list(self.files_to_cleanup, must_exist=False)
+        for file in self.files_to_cleanup:
+            self.assertFalse(os.path.exists(file))
+        file_util.rm_dirs_from_dir_list(self.dirs_to_cleanup)
+        env_util.teardown_remote_site(self.site)
+        env_util.teardown_remote_site(self.site_raw)
 
     def tearDown(self):
-        self.assertFalse(os.path.exists(self.savepath))
-        self.assertFalse(os.path.exists('query_template.py'))
-        self.assertFalse(os.path.exists('prepare_result.p'))
-        shutil.rmtree(self.git_repo_path)
-        shutil.rmtree(self.remote_dir_root)
         # drop and then reset
-        self.__class__.collection_client.drop()
-        self.__class__.collection_client = self.__class__.db_client['leelab']['cortex_exp_sorted']
-        #
-        self.__class__.collection_client_raw.drop()
-        self.__class__.collection_client_raw = self.__class__.db_client['temp']['temp']
+        env_util.reset_db(self.__class__, [CortexExpSortedAction.table_path, self.__class__.collection_raw_key])
 
     @classmethod
     def tearDownClass(cls):
-        cls.collection_client.drop()
-        cls.collection_client_raw.drop()
-        cls.db_client.close()
-        shutil.rmtree("config")
+        env_util.teardown_db(cls)
+        env_util.teardown_local_config()
 
     def test_insert_correct_stuff(self):
         for _ in range(100):
             self.get_new_instance()
             self.temp_dict['wrong_type'] = 'correct'
-            with mock.patch('builtins.input', side_effect=self.mock_function):
-                self.assertFalse(self.action.is_prepared())
-                self.action.run()
-            self.assertTrue(self.action.is_finished())
+            mock_util.run_mocked_action(self.action, {'input': self.mock_function})
             self.assertEqual(len(self.action.result_ids), 1)
             result_id = self.action.result_ids[0]
-            result = self.__class__.collection_client.find_one({'_id': result_id})
-            self.assertIsNotNone(result)
+            result = env_util.assert_found_and_return(self.__class__, [result_id],
+                                                      client_key=CortexExpSortedAction.table_path)[0]
             del result['_id']
-
             # now time to augment correct result
             correct_result = self.temp_dict['correct_result']
             computed_append_prefix = os.path.join('leelab', 'cortex_exp_sorted', str(result_id))
@@ -218,23 +180,24 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
             correct_result['sorted_files']['filelist'] = [f for i, f in
                                                           enumerate(correct_result['sorted_files']['filelist'])
                                                           if (i in self.temp_dict['keep_file_idx'])]
+            for key in correct_result:  # this for loop for of assert is easy to debug.
+                self.assertEqual(correct_result[key], result[key])
             self.assertEqual(correct_result, result)  # most important check.
             result['cortex_exp_ref'] = str(result['cortex_exp_ref'])
             result['timestamp'] = strict_rfc3339.timestamp_to_rfc3339_utcoffset(result['timestamp'].timestamp())
             self.assertTrue(schemautil.validate(CortexExpSortedSchemaJSL.get_schema(), result))
             self.action.revoke()
-            self.assertEqual(self.__class__.collection_client.count({'_id': result_id}), 0)
+            env_util.assert_not_found(self.__class__, [result_id], client_key=CortexExpSortedAction.table_path)
             # make sure the whole folder is also removed.
-            self.assertFalse(os.path.exists(joinpath_norm(self.remote_dir_root, self.remote_data_dir,
-                                                          'leelab', 'cortex_exp_sorted', str(result_id))))
-            self.assertTrue(os.path.exists(joinpath_norm(self.remote_dir_root, self.remote_data_dir,
-                                                         'leelab', 'cortex_exp_sorted')))
+            self.assertFalse(os.path.exists(joinpath_norm(self.site['prefix'], 'leelab',
+                                                          'cortex_exp_sorted', str(result_id))))
+            self.assertTrue(os.path.exists(joinpath_norm(self.site['prefix'], 'leelab', 'cortex_exp_sorted')))
 
             self.remove_instance()
 
     @staticmethod
     def input_mock_function(prompt: str, instance) -> str:
-        if prompt.startswith("Step 0"):
+        if prompt.startswith("{} Step 0a".format(instance.class_identifier)):
             # now it's time to pickle my result and let the template to load that stuff
             query_template_mock = """
 from bson import ObjectId
@@ -257,7 +220,8 @@ result = doc
                                                        f.lower().endswith('.nev')]
             record_old['sort_person'] = instance.temp_dict['correct_result']['sort_person']
             record_old['notes'] = instance.temp_dict['correct_result']['notes']
-            record_old['timestamp'] = instance.temp_dict['timestamp_str']
+            instance.temp_dict['correct_result']['timestamp'] = util.rfc3339_to_datetime(record_old['timestamp'])
+
             with open(instance.action.config['savepath'], 'wt') as f_new:
                 json.dump(record_old, f_new)
         elif prompt.startswith("Step 2"):
@@ -276,8 +240,9 @@ result = doc
             # remove some files.
             with open(instance.action.config['savepath'], 'rt') as f_old:
                 record_old = json.load(f_old)
-            assert len(record_old['sorted_files']['filelist']) == 10
-            instance.temp_dict['keep_file_idx'] = random.sample(range(10), 5)  # keep 5 files.
+            assert len(record_old['sorted_files']['filelist']) == 50
+            # keep 5 files.
+            instance.temp_dict['keep_file_idx'] = random.sample(range(len(record_old['sorted_files']['filelist'])), 5)
             record_old['sorted_files']['filelist'] = [f for i, f in enumerate(record_old['sorted_files']['filelist'])
                                                       if (i in instance.temp_dict['keep_file_idx'])]
             with open(instance.action.config['savepath'], 'wt') as f_new:

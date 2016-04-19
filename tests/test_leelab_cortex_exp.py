@@ -17,7 +17,7 @@ from test_util import env_util, mock_util, file_util
 class LeelabCortexExpAction(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        env_util.setup_db(cls, CortexExpAction.table_path)
+        env_util.setup_db(cls, [CortexExpAction.table_path])
         with open("filetransfer_local_config.json.template", "rt") as f:
             filetransfer_config_text = f.read().format(getpass.getuser())
         env_util.setup_local_config(('core', 'filetransfer'), filetransfer_config_text)
