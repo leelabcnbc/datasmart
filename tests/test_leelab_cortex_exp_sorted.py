@@ -28,7 +28,7 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
     def setUp(self):
         self.mock_function = partial(LeelabCortexExpSortedAction.input_mock_function, instance=self)
 
-    def generate_files_for_sac_batch(self):
+    def generate_files_for_sacbatch_and_spikesort(self):
         # create files for sort
         with open(os.path.join(self.git_mock_info['git_repo_path'], 'SAC_batch_summer.tar.gz'), 'wt') as f:
             f.close()
@@ -36,7 +36,6 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
             f.close()
 
     def get_new_instance(self):
-        self.git_repo_path = " ".join(file_util.gen_filenames(3))
         self.dirs_to_cleanup = file_util.gen_unique_local_paths(1)  # 1 for git
         file_util.create_dirs_from_dir_list(self.dirs_to_cleanup)
         self.git_mock_info = mock_util.setup_git_mock(git_repo_path=self.dirs_to_cleanup[0])
@@ -51,7 +50,7 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
                                                      {'git': self.git_mock_info})
 
         # generate files to fetch for SAC batch.
-        self.generate_files_for_sac_batch()
+        self.generate_files_for_sacbatch_and_spikesort()
 
         filelist = file_util.gen_filelist(100, abs_path=False)
         self.filelist_nev = [f + '.nev' for f in filelist[:50]]
@@ -89,8 +88,15 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
         self.class_identifier = self.action.class_identifier
         self.files_to_cleanup = [self.savepath, 'query_template.py', 'prepare_result.p',
                                  self.system_info_file, self.sacbatch_output_file] + \
-                                [os.path.join(self.__class__.local_save_dir, os.path.basename(x)) for x in self.filelist_nev]
-        for file in self.files_to_cleanup:
+                                [os.path.join(self.__class__.local_save_dir, os.path.basename(x)) for x in
+                                 self.filelist_nev]
+
+        self.files_to_cleanup_sacbatch_and_spikesort = [os.path.join(self.__class__.local_save_dir, x) for x in
+                                                        ['sacbatch_and_spikesort_script.sh',
+                                                         'SAC_batch.tar.gz', 'spikesort.tar.gz',
+                                                         'sacbatch_script.m', 'spikesort_script.m']]
+
+        for file in self.files_to_cleanup + self.files_to_cleanup_sacbatch_and_spikesort:
             self.assertFalse(os.path.exists(file))
 
         self.temp_dict['old_result'] = dict()
@@ -146,7 +152,8 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
 
     def remove_instance(self):
         file_util.rm_files_from_file_list(self.files_to_cleanup, must_exist=False)
-        for file in self.files_to_cleanup:
+        file_util.rm_files_from_file_list(self.files_to_cleanup_sacbatch_and_spikesort)
+        for file in self.files_to_cleanup + self.files_to_cleanup_sacbatch_and_spikesort:
             self.assertFalse(os.path.exists(file))
         file_util.rm_dirs_from_dir_list(self.dirs_to_cleanup)
         env_util.teardown_remote_site(self.site)
@@ -175,6 +182,7 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
             correct_result = self.temp_dict['correct_result']
             computed_append_prefix = os.path.join('leelab', 'cortex_exp_sorted', str(result_id))
             correct_result['sorted_files']['site']['append_prefix'] = computed_append_prefix
+
             correct_result['sorted_files']['filelist'] = [util.joinpath_norm(computed_append_prefix, f) for f in
                                                           correct_result['sorted_files']['filelist']]
             correct_result['sorted_files']['filelist'] = [f for i, f in
@@ -183,6 +191,11 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
             for key in correct_result:  # this for loop for of assert is easy to debug.
                 self.assertEqual(correct_result[key], result[key])
             self.assertEqual(correct_result, result)  # most important check.
+            # make sure files are indeed uploaded.
+            files_uploaded = os.listdir(os.path.join(result['sorted_files']['site']['prefix'], computed_append_prefix))
+            files_uploaded = [x for x in files_uploaded if not x.startswith('.')]
+            files_uploaded_record = [os.path.basename(x) for x in result['sorted_files']['filelist']]
+            self.assertEqual(sorted(files_uploaded), sorted(files_uploaded_record))
             result['cortex_exp_ref'] = str(result['cortex_exp_ref'])
             result['timestamp'] = strict_rfc3339.timestamp_to_rfc3339_utcoffset(result['timestamp'].timestamp())
             self.assertTrue(schemautil.validate(CortexExpSortedSchemaJSL.get_schema(), result))
@@ -211,7 +224,7 @@ result = doc
 
             with open("query_template.py", "wt") as f:
                 f.write(query_template_mock)
-        elif prompt.startswith("Step 1"):
+        elif prompt.startswith("{} Step 2.1".format(instance.class_identifier)):
             with open(instance.action.config['savepath'], 'rt') as f_old:
                 record_old = json.load(f_old)
 
@@ -224,19 +237,19 @@ result = doc
 
             with open(instance.action.config['savepath'], 'wt') as f_new:
                 json.dump(record_old, f_new)
-        elif prompt.startswith("Step 2"):
+        elif prompt.startswith("{} Step 2.2".format(instance.class_identifier)):
             pass
-        elif prompt.startswith("Step 3"):
+        elif prompt.startswith("{} Step 2.3".format(instance.class_identifier)):
             pass
-        elif prompt.startswith("Step 4"):
+        elif prompt.startswith("{} Step 2.4".format(instance.class_identifier)):
             # create system_info,
             with open(instance.system_info_file, 'wt') as f:
                 f.write(instance.temp_dict['correct_result']['sort_config']['system_info'])
             with open(instance.sacbatch_output_file, 'wt') as f:
                 f.write(instance.temp_dict['correct_result']['sort_config']['sacbatch_output'])
-        elif prompt.startswith("Step 5"):
+        elif prompt.startswith("{} Step 2.5".format(instance.class_identifier)):
             pass
-        elif prompt.startswith("Step 6"):
+        elif prompt.startswith("{} Step 2.6".format(instance.class_identifier)):
             # remove some files.
             with open(instance.action.config['savepath'], 'rt') as f_old:
                 record_old = json.load(f_old)
@@ -247,9 +260,10 @@ result = doc
                                                       if (i in instance.temp_dict['keep_file_idx'])]
             with open(instance.action.config['savepath'], 'wt') as f_new:
                 json.dump(record_old, f_new)
-        elif prompt.startswith("please choose the method to do sorting"):
+        elif prompt.startswith("{} Step 1a".format(instance.class_identifier)):
             return "1"
-        elif prompt.startswith("press enter to start using method sacbatch_and_spikesort"):
+        elif prompt.startswith("{} Step 1b press enter to start using method sacbatch_and_spikesort".format(
+                instance.class_identifier)):
             pass
         else:
             print(prompt)

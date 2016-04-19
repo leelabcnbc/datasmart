@@ -59,10 +59,11 @@ class CortexExpSortedAction(DBActionWithSchema):
         for idx, method in enumerate(sort_methods, start=1):
             print("{}: {}".format(idx, method))
         sort_choice_idx = int(
-            input("please choose the method to do sorting, from {} to {}:  ".format(1, len(sort_methods))))
+            input("{} Step 1a please choose the method to do sorting, from {} to {}:  ".format(self.class_identifier,
+                                                                                               1, len(sort_methods))))
         assert 1 <= sort_choice_idx <= len(sort_methods), "invalid method!"
         sort_choice = sort_methods[sort_choice_idx - 1]
-        input("press enter to start using method {}".format(sort_choice))
+        input("{} Step 1b press enter to start using method {}".format(self.class_identifier, sort_choice))
         record_candidate = self.generate_init_record(sort_choice)
         if sort_choice == 'sacbatch_and_spikesort':
             record_candidate = self.perform_sacbatch_and_spikesort(record_candidate)
@@ -94,9 +95,10 @@ class CortexExpSortedAction(DBActionWithSchema):
         insert_id = self.prepare_result['result_ids'][0]
         record = save_wait_and_load(json.dumps(record, indent=2),
                                     self.config['savepath'],
-                                    "Step 1 please edit files to sort in 'files_to_sort', "
+                                    "{} Step 2.1 please edit files to sort in 'files_to_sort', "
                                     "and edit notes and sort person (even add more files to sort). don't "
-                                    "care about sorted_files now...", overwrite=False, load_json=True)
+                                    "care about sorted_files now...".format(self.class_identifier),
+                                    overwrite=False, load_json=True)
         # first, keep only NEV files
         assert self.dbschema_instance.validate_record(record)
         for file in record['files_to_sort']['filelist']:
@@ -106,7 +108,7 @@ class CortexExpSortedAction(DBActionWithSchema):
             len(record['files_to_sort']['filelist']),
             self.get_file_transfer_config()['local_data_dir']
         ))
-        input("Step 2 press enter to continue")
+        input("{} Step 2.2 press enter to continue".format(self.class_identifier))
         ret = self.fetch_files(record['files_to_sort']['filelist'], record['files_to_sort']['site'],
                                relative=False, local_fetch_option='copy')
         filelist_local = ret['filelist']
@@ -114,10 +116,11 @@ class CortexExpSortedAction(DBActionWithSchema):
         for file in filelist_local:
             assert os.path.basename(file) == file
 
-        filelist_cell = ["'"+file+"'" for file in filelist_local]
+        filelist_cell = ["'" + file + "'" for file in filelist_local]
         filelist_cell = "{" + ",".join(filelist_cell) + "}"
         print(filelist_cell)
-        input('Step 3 the above files will be put into sorting. press enter to continue.')
+        input('{} Step 2.3 the above files will be put into sorting. press enter to continue'.format(
+            self.class_identifier))
 
         sacbatch_script = util.load_config(self.__class__.config_path, 'sacbatch_script.m', load_json=False)
         spikesort_script = util.load_config(self.__class__.config_path, 'spikesort_script.m', load_json=False)
@@ -142,8 +145,8 @@ class CortexExpSortedAction(DBActionWithSchema):
         sacbatch_file = util.joinpath_norm('SAC_batch_summer.tar.gz')
         spikesort_file = util.joinpath_norm('spikesort.tar.gz')
 
-        shutil.copyfile(os.path.join(self.config['spike_sorting_software_repo_path'],sacbatch_file),
-                        os.path.join(local_dir,'SAC_batch.tar.gz'))
+        shutil.copyfile(os.path.join(self.config['spike_sorting_software_repo_path'], sacbatch_file),
+                        os.path.join(local_dir, 'SAC_batch.tar.gz'))
         shutil.copyfile(os.path.join(self.config['spike_sorting_software_repo_path'], spikesort_file),
                         os.path.join(local_dir, 'spikesort.tar.gz'))
 
@@ -155,12 +158,13 @@ class CortexExpSortedAction(DBActionWithSchema):
         os.chmod(system_info_file, 0o777)
         os.chmod(sacbatch_output_file, 0o777)
         # now time to write a script for sac batch.
-        prompt_text = "Step 4 SAC script {} and SpikeSort script {} are in {}, run them outside and then press enter".format(
-            "sacbatch_script.m", "spikesort_script.m", self.get_file_transfer_config()['local_data_dir']
+        prompt_text = "{} Step 2.4 SAC script {} and SpikeSort script {} are in {}, run them outside and then press enter".format(
+            self.class_identifier, "sacbatch_script.m", "spikesort_script.m",
+            self.get_file_transfer_config()['local_data_dir']
         )
 
         input(prompt_text)
-        input("Step 5 press again if you are really sure you are finished.")
+        input("{} Step 2.5 press again if you are really sure you are finished.".format(self.class_identifier))
 
         # then collect info
         with open(os.path.join(local_dir, 'system_info'), 'rt') as f:
@@ -182,8 +186,9 @@ class CortexExpSortedAction(DBActionWithSchema):
         record_old = record
         record = save_wait_and_load(json.dumps(record, indent=2),
                                     self.config['savepath'],
-                                    "Step 6 you can remove some files to upload at this step, "
-                                    "if you add some files", overwrite=True, load_json=True)
+                                    "{} Step 2.6 you can remove some files to upload at this step, "
+                                    "if you added some files before to sort files of the same day together".format(
+                                        self.class_identifier), overwrite=True, load_json=True)
         # first, keep only NEV files
         assert self.dbschema_instance.validate_record(record)
         filelist_local_new = [os.path.basename(f) for f in record['sorted_files']['filelist']]
@@ -191,7 +196,7 @@ class CortexExpSortedAction(DBActionWithSchema):
         assert set(filelist_local_new) <= set(filelist_local), "you can only remove files!"
         del record_old['sorted_files']['filelist']
         del record['sorted_files']['filelist']
-        assert record_old==record, "don't change anything other than file list!"
+        assert record_old == record, "don't change anything other than file list!"
         print("now {} sorted NEV files will be uploaded".format(len(filelist_local_new)))
         ret_2 = self.push_files(insert_id, filelist_local_new, relative=False)
 
