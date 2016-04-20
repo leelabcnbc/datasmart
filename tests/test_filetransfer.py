@@ -5,7 +5,7 @@ it's asssumed that datajoin package can be found now, probably by playing with P
 import unittest
 import shutil
 import os
-from test_util import file_util
+from test_util import file_util, env_util
 import datasmart.core.filetransfer
 import datasmart.core.util
 from datasmart.core import schemautil
@@ -25,15 +25,12 @@ class TestFileTransferLocal(unittest.TestCase):
             "local_fetch_option": "copy"
         }
 
-        self.local_data_dir = " ".join(file_util.gen_filenames(3))
-        self.default_site_path = " ".join(file_util.gen_filenames(3))
-        self.external_site = " ".join(file_util.gen_filenames(3))
+        self.dirs_to_cleanup = file_util.gen_unique_local_paths(3)
+        self.local_data_dir = self.dirs_to_cleanup[0]
+        self.default_site_path = self.dirs_to_cleanup[1]
+        self.external_site = self.dirs_to_cleanup[2]
         self.subdirs = file_util.gen_filenames(3)
         self.dest_append_prefix = file_util.gen_filenames(3)
-
-        # check that all of them are different.
-        assert len({self.local_data_dir, self.default_site_path, self.external_site}) == len(
-            [self.local_data_dir, self.default_site_path, self.external_site])
 
         config_this['local_data_dir'] = os.path.abspath(self.local_data_dir)
         config_this['default_site'] = {'local': True, 'path': os.path.abspath(self.default_site_path)}
@@ -48,36 +45,20 @@ class TestFileTransferLocal(unittest.TestCase):
         for x in itertools.product([self.subdirs, None], [True, False], [self.dest_append_prefix, None], [1, 100]):
             subdirs_this, relative, dest_append_prefix, filecount = x
             with self.subTest(subdirs_this=subdirs_this, relative=relative, dest_append_prefix=dest_append_prefix,
-                              filecount = filecount):
+                              filecount=filecount):
                 self.filelist = file_util.gen_filelist(filecount, abs_path=False)
-                self.assertFalse(os.path.exists(self.local_data_dir))
-                os.mkdir(self.local_data_dir)
-                self.assertFalse(os.path.exists(self.default_site_path))
-                os.mkdir(self.default_site_path)
-
+                file_util.create_dirs_from_dir_list([self.local_data_dir, self.default_site_path])
                 self.local_push(subdirs_this=subdirs_this, relative=relative, dest_append_prefix=dest_append_prefix)
-
-                self.assertTrue(os.path.exists(self.local_data_dir))
-                shutil.rmtree(self.local_data_dir)
-                self.assertTrue(os.path.exists(self.default_site_path))
-                shutil.rmtree(self.default_site_path)
+                file_util.rm_dirs_from_dir_list([self.local_data_dir, self.default_site_path])
 
     def test_fetch(self):
-        for x in itertools.product([self.subdirs, None], [True, False], [1,100]):
-            subdirs_this, relative, filecount= x
+        for x in itertools.product([self.subdirs, None], [True, False], [1, 100]):
+            subdirs_this, relative, filecount = x
             with self.subTest(subdirs_this=subdirs_this, relative=relative, filecount=filecount):
                 self.filelist = file_util.gen_filelist(filecount, abs_path=False)
-                self.assertFalse(os.path.exists(self.local_data_dir))
-                os.mkdir(self.local_data_dir)
-                self.assertFalse(os.path.exists(self.external_site))
-                os.mkdir(self.external_site)
-
+                file_util.create_dirs_from_dir_list([self.local_data_dir, self.external_site])
                 self.local_fetch(subdirs_this=subdirs_this, relative=relative)
-
-                self.assertTrue(os.path.exists(self.local_data_dir))
-                shutil.rmtree(self.local_data_dir)
-                self.assertTrue(os.path.exists(self.external_site))
-                shutil.rmtree(self.external_site)
+                file_util.rm_dirs_from_dir_list([self.local_data_dir, self.external_site])
 
     def local_fetch(self, subdirs_this=None, relative=True):
         # test local fetch, so create external and local data dir
@@ -91,6 +72,25 @@ class TestFileTransferLocal(unittest.TestCase):
         ret2 = self.filetransfer.fetch(filelist=self.filelist, src_site={'path': self.external_site, 'local': True},
                                        relative=relative,
                                        subdirs=subdirs_this, dryrun=True)
+        self.assertEqual(ret, ret2)
+
+    def local_push(self, subdirs_this=None, relative=True, dest_append_prefix=None):
+        if dest_append_prefix is None:
+            dest_append_prefix = ['']
+        # test local fetch, so create external and local data dir
+        if len(dest_append_prefix) > 1:
+            # ok, if dest_append_prefix has more than 2 levels, create all intermediate directories except for last one.
+            os.makedirs(os.path.join(*([self.default_site_path] + dest_append_prefix[:-1])))
+        # ok. Now time to create files in local data sub dirs.
+        file_util.create_files_from_filelist(self.filelist, self.local_data_dir, subdirs_this)
+
+        ret = self.filetransfer.push(filelist=self.filelist, relative=relative, subdirs=subdirs_this,
+                                     dest_append_prefix=dest_append_prefix)
+        self.check_local_push_fetch_result(False, ret, self.default_site_path, subdirs_this,
+                                           relative=relative, dest_append_prefix=dest_append_prefix)
+        # check dry run.
+        ret2 = self.filetransfer.push(filelist=self.filelist, relative=relative, subdirs=subdirs_this,
+                                      dest_append_prefix=dest_append_prefix, dryrun=True)
         self.assertEqual(ret, ret2)
 
     def check_local_push_fetch_result(self, fetch_flag, ret, external_site,
@@ -153,31 +153,6 @@ class TestFileTransferLocal(unittest.TestCase):
             # check file being the same.
             with open(dest_file, 'rb') as f1, open(src_file, 'rb') as f2:
                 self.assertEqual(f1.read(), f2.read())
-
-    def local_push(self, subdirs_this=None, relative=True, dest_append_prefix=None):
-        if dest_append_prefix is None:
-            dest_append_prefix = ['']
-        # test local fetch, so create external and local data dir
-        if len(dest_append_prefix) > 1:
-            # ok, if dest_append_prefix has more than 2 levels, create all intermediate directories except for last one.
-            os.makedirs(os.path.join(*([self.default_site_path] + dest_append_prefix[:-1])))
-        # ok. Now time to create files in local data sub dirs.
-        file_util.create_files_from_filelist(self.filelist, self.local_data_dir, subdirs_this)
-
-        ret = self.filetransfer.push(filelist=self.filelist, relative=relative, subdirs=subdirs_this,
-                                     dest_append_prefix=dest_append_prefix)
-        self.check_local_push_fetch_result(False, ret, self.default_site_path, subdirs_this,
-                                           relative=relative, dest_append_prefix=dest_append_prefix)
-        # check dry run.
-        ret2 = self.filetransfer.push(filelist=self.filelist, relative=relative, subdirs=subdirs_this,
-                                      dest_append_prefix=dest_append_prefix, dryrun=True)
-        self.assertEqual(ret, ret2)
-
-        # remove dir
-        if dest_append_prefix != ['']:
-            self.assertTrue(os.path.exists(os.path.join(self.default_site_path, *dest_append_prefix)))
-            self.filetransfer.remove_dir(site=ret['dest'])
-            self.assertFalse(os.path.exists(os.path.join(self.default_site_path, *dest_append_prefix)))
 
 
 if __name__ == '__main__':

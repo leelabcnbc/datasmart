@@ -8,12 +8,73 @@ from test_util import file_util
 import shutil
 import datasmart.core.util
 from datasmart.core import schemautil
-
+import time
 local_map_dir_root = None
 remote_dir_root = None
 
 
 class TestFileTransferRemote(unittest.TestCase):
+    def setup_config(self, nas_ip_address, local_data_dir, remote_data_dir, username):
+        config_this = {
+            "local_data_dir": "_data",
+            "site_mapping_push": [],
+            "site_mapping_fetch": [],
+            "remote_site_config": {},
+            "default_site": {},
+            "quiet": True,  # less output.
+            "local_fetch_option": "copy"
+        }
+        config_this['local_data_dir'] = os.path.abspath(local_data_dir)
+        config_this['site_mapping_push'] = [
+            {
+                "from":
+                    {
+                        "path": nas_ip_address,
+                        "prefix": datasmart.core.util.joinpath_norm(remote_dir_root, remote_data_dir),
+                        "local": False
+                    },
+                "to":
+                    {
+                        "path": datasmart.core.util.joinpath_norm(local_map_dir_root, remote_data_dir),
+                        "local": True
+                    }
+            }
+        ]
+        config_this['site_mapping_fetch'] = [
+            {
+                "from":
+                    {
+                        "path": nas_ip_address,
+                        "prefix": datasmart.core.util.joinpath_norm(remote_dir_root, remote_data_dir),
+                        "local": False
+                    },
+                "to":
+                    {
+                        "path": datasmart.core.util.joinpath_norm(local_map_dir_root, remote_data_dir),
+                        "local": True
+                    }
+            }
+        ]
+        config_this['remote_site_config'] = {
+            nas_ip_address: {
+                "ssh_username": username,
+                "ssh_port": 22
+            }
+        }
+        config_this['default_site'] = {"path": nas_ip_address,
+                                       "prefix": datasmart.core.util.joinpath_norm(remote_dir_root,
+                                                                                   remote_data_dir),
+                                       "local": False}
+        config_this['quiet'] = True
+        config_this['local_fetch_option'] = 'copy'
+        config_this_normalized = datasmart.core.filetransfer.FileTransfer.normalize_config(deepcopy(config_this))
+        assert config_this == config_this_normalized
+        assert schemautil.validate(datasmart.core.filetransfer.FileTransferConfigSchema.get_schema(), config_this)
+        self.filetransfer = datasmart.core.filetransfer.FileTransfer(config_this)
+        self.assertTrue(os.path.exists(local_data_dir))
+        shutil.rmtree(local_data_dir)
+
+
     #@unittest.skip("too long")
     def test_all(self):
         global local_map_dir_root
@@ -23,83 +84,36 @@ class TestFileTransferRemote(unittest.TestCase):
         numlist = (1, 5, 20)  # test 1 file, 5 files, and 20 files.
         for idx, filecount in enumerate(numlist):
             filelist = file_util.gen_filelist(filecount, abs_path=False)
-            local_data_dir = " ".join(file_util.gen_filenames(3))
-            local_cache_dir = " ".join(file_util.gen_filenames(3))
-            remote_data_dir = " ".join(file_util.gen_filenames(3))
+
+            self.dirs_to_cleanup = file_util.gen_unique_local_paths(4)
+
+
+            local_data_dir = self.dirs_to_cleanup[0]
+            local_cache_dir = self.dirs_to_cleanup[1]
+            remote_data_dir = self.dirs_to_cleanup[2]
 
             subdirs_push = file_util.gen_filenames(3)
             subdirs_fetch = file_util.gen_filenames(3)
             dest_append_prefix = file_util.gen_filenames(3)
 
-            local_map_dir_root = " ".join(file_util.gen_filenames(3))
-            remote_dir_root = " ".join(file_util.gen_filenames(3))
+            # ``local_map_dir_root/remote_data_dir`` (or ``remote_dir_root/remote_data_dir`` will be used to save files
+            local_map_dir_root = self.dirs_to_cleanup[3]
+            remote_dir_root = file_util.gen_unique_local_paths(1)[0]
 
             # check that all of them are different.
-            assert len({local_data_dir, local_cache_dir, remote_data_dir, local_map_dir_root, remote_dir_root}) == len(
-                [local_data_dir, local_cache_dir, remote_data_dir, local_map_dir_root, remote_dir_root])
             local_map_dir_root = os.path.abspath(local_map_dir_root)
             remote_dir_root = os.path.abspath(remote_dir_root)
             os.makedirs(local_map_dir_root)
+            # remote_dir_root is a symlink
             os.symlink(local_map_dir_root, remote_dir_root)
 
-            config_this = {
-                "local_data_dir": "_data",
-                "site_mapping_push": [],
-                "site_mapping_fetch": [],
-                "remote_site_config": {},
-                "default_site": {},
-                "quiet": True,  # less output.
-                "local_fetch_option": "copy"
-            }
-            config_this['local_data_dir'] = os.path.abspath(local_data_dir)
-            config_this['site_mapping_push'] = [
-                {
-                    "from":
-                        {
-                            "path": nas_ip_address,
-                            "prefix": datasmart.core.util.joinpath_norm(remote_dir_root, remote_data_dir),
-                            "local": False
-                        },
-                    "to":
-                        {
-                            "path": datasmart.core.util.joinpath_norm(local_map_dir_root, remote_data_dir),
-                            "local": True
-                        }
-                }
-            ]
-            config_this['site_mapping_fetch'] = [
-                {
-                    "from":
-                        {
-                            "path": nas_ip_address,
-                            "prefix": datasmart.core.util.joinpath_norm(remote_dir_root, remote_data_dir),
-                            "local": False
-                        },
-                    "to":
-                        {
-                            "path": datasmart.core.util.joinpath_norm(local_map_dir_root, remote_data_dir),
-                            "local": True
-                        }
-                }
-            ]
-            config_this['remote_site_config'] = {
-                nas_ip_address: {
-                    "ssh_username": username,
-                    "ssh_port": 22
-                }
-            }
-            config_this['default_site'] = {"path": nas_ip_address,
-                                           "prefix": datasmart.core.util.joinpath_norm(remote_dir_root,
-                                                                                       remote_data_dir),
-                                           "local": False}
-            config_this['quiet'] = True
-            config_this['local_fetch_option'] = 'copy'
-            config_this_normalized = datasmart.core.filetransfer.FileTransfer.normalize_config(deepcopy(config_this))
-            assert config_this == config_this_normalized
-            assert schemautil.validate(datasmart.core.filetransfer.FileTransferConfigSchema.get_schema(), config_this)
-            filetransfer = datasmart.core.filetransfer.FileTransfer(config_this)
-            self.assertTrue(os.path.exists(local_data_dir))
-            shutil.rmtree(local_data_dir)
+
+            self.setup_config(nas_ip_address=nas_ip_address,
+                              local_data_dir=local_data_dir,
+                              remote_data_dir=remote_data_dir,username=username)
+
+            # create all directories
+
 
             # test push & fetch: first add data in local_data_dir, then push, then set ``config_this['local_data_dir']``
             # to local_cache_dir, then fetch data into local_cache_dir, and then compare.
@@ -119,17 +133,9 @@ class TestFileTransferRemote(unittest.TestCase):
                                   dest_append_prefix_this=dest_append_prefix_this,
                                   local_fetch_option=local_fetch_option,
                                   map_push=map_push, map_fetch=map_fetch, strip_append_prefix=strip_append_prefix):
-                    # print("push rel: {}, fetch rel: {}".format(relative_push_this, relative_fetch_this))
-                    # print("subdir push: {}, subdir fetch: {}".format(subdirs_push_this, subdirs_fetch_this))
-                    # print("dest append: {}, local fetch: {}".format(dest_append_prefix_this, local_fetch_option))
-                    # print("map push: {}, map fetch: {}".format(map_push, map_fetch))
-                    # print("strip appendix: {}".format(strip_append_prefix))
 
-                    assert not os.path.exists(local_data_dir)
-                    assert not os.path.exists(local_cache_dir)
-                    assert not os.path.exists(remote_data_dir)
 
-                    self.remote_push_fetch(filetransfer, filelist, local_data_dir, local_cache_dir,
+                    self.remote_push_fetch(filelist, local_data_dir, local_cache_dir,
                                            subdirs_push=subdirs_push_this, subdirs_fetch=subdirs_fetch_this,
                                            relative_push=relative_push_this, relative_fetch=relative_fetch_this,
                                            dest_append_prefix=dest_append_prefix_this, nas_ip_address=nas_ip_address,
@@ -143,7 +149,7 @@ class TestFileTransferRemote(unittest.TestCase):
             shutil.rmtree(local_map_dir_root)
             os.remove(remote_dir_root)
 
-    def remote_push_fetch(self, filetransfer, filelist, local_data_dir, local_cache_dir, subdirs_push=None,
+    def remote_push_fetch(self, filelist, local_data_dir, local_cache_dir, subdirs_push=None,
                           subdirs_fetch=None,
                           relative_push=True, relative_fetch=True, dest_append_prefix=None, nas_ip_address='',
                           remote_data_dir='', local_fetch_option='copy', map_fetch=False, map_push=False,
@@ -151,16 +157,19 @@ class TestFileTransferRemote(unittest.TestCase):
         # this is combined test of remote push and fetch.
 
         if strip_append_prefix:
-            assert dest_append_prefix and relative_fetch
+            self.assertTrue(dest_append_prefix and relative_fetch)
 
         if dest_append_prefix is None:
             dest_append_prefix = ['']
         remote_append_dir = os.path.join(local_map_dir_root, remote_data_dir, *dest_append_prefix)
         remote_append_dir_root = os.path.join(local_map_dir_root, remote_data_dir)
         # print('root dir: {}'.format(remote_append_dir_root))
+
+
+        filetransfer = self.filetransfer
+
         try:
             os.makedirs(remote_append_dir, exist_ok=False)
-            assert not os.path.exists(local_data_dir)
             os.mkdir(local_data_dir)
             # ok. Now time to create files in local data
             file_util.create_files_from_filelist(filelist, local_data_dir, subdirs_this=subdirs_push)
@@ -173,14 +182,13 @@ class TestFileTransferRemote(unittest.TestCase):
                                          subdirs=subdirs_push, dest_append_prefix=dest_append_prefix)
             ret_push_1 = filetransfer.push(filelist=filelist, relative=relative_push,
                                            subdirs=subdirs_push, dest_append_prefix=dest_append_prefix, dryrun=True)
-            assert ret_push == ret_push_1
+            self.assertEqual(ret_push, ret_push_1)
             filetransfer.set_config(config_temp)
 
             # wait for a while for everything to sync.
             # time.sleep(2)
 
             # do the fetch.
-            assert not os.path.exists(local_cache_dir)
             os.mkdir(local_cache_dir)
             config_new = deepcopy(filetransfer.config)
             config_new['local_data_dir'] = os.path.abspath(local_cache_dir)
@@ -206,7 +214,7 @@ class TestFileTransferRemote(unittest.TestCase):
                 filelist=ret_push['filelist'],
                 src_site=ret_push['dest'], relative=relative_fetch, subdirs=subdirs_fetch,
                 local_fetch_option=local_fetch_option, strip_prefix=strip_prefix, dryrun=True)
-            assert ret_fetch == ret_fetch_1
+            self.assertEqual(ret_fetch, ret_fetch_1)
 
             self.check_remote_push_fetch_result(ret_push,
                                                 ret_fetch,
@@ -220,19 +228,16 @@ class TestFileTransferRemote(unittest.TestCase):
 
             # remove dir
             if dest_append_prefix != ['']:
-                assert os.path.exists(remote_append_dir)
+                self.assertTrue(os.path.exists(remote_append_dir))
                 filetransfer.remove_dir(site=ret_push['dest'])
-                # time.sleep(5)
-                assert not os.path.exists(remote_append_dir)
+                self.assertFalse(os.path.exists(remote_append_dir))
 
         finally:
             filetransfer.set_config(config_temp)
-            assert os.path.exists(local_data_dir)
             shutil.rmtree(local_data_dir)
-            assert os.path.exists(local_cache_dir)
             shutil.rmtree(local_cache_dir)
-            assert os.path.exists(remote_append_dir_root)
             shutil.rmtree(remote_append_dir_root)
+            time.sleep(0.05) # some buffer time
 
     def check_remote_push_fetch_result(self, ret_push, ret_fetch, filelist,
                                        local_data_dir, local_cache_dir, subdirs_push=None, subdirs_fetch=None,
@@ -288,6 +293,7 @@ class TestFileTransferRemote(unittest.TestCase):
         # check site
         assert ret_push['src'] == {'path': datasmart.core.util.joinpath_norm(os.path.abspath(local_data_dir),
                                                                              *subdirs_push), 'local': True}
+        assert ret_push['src'] == ret_push['src_actual']
         # assert ret_push['src_acutal'] == ret_push['src']
         self.assertEqual(ret_push['dest'],from_site_auto)
         if map_push:
@@ -308,7 +314,7 @@ class TestFileTransferRemote(unittest.TestCase):
         else:
             assert ret_fetch['dest'] == {'path': datasmart.core.util.joinpath_norm(os.path.abspath(local_cache_dir),
                                                                                    *subdirs_fetch), 'local': True}
-        # assert ret_fetch['dest_actual'] == ret_fetch['dest']
+        assert ret_fetch['dest_actual'] == ret_fetch['dest']
 
 
         # ok. now check the filelist
@@ -335,6 +341,7 @@ class TestFileTransferRemote(unittest.TestCase):
 
             filebase = os.path.basename(file)
             filename1 = os.path.join(*([local_data_dir] + subdirs_push + [file]))
+            filename2 = os.path.join(local_map_dir_root, remote_data_dir, dest_append_prefix, file if relative_push else filebase)
             filename3 = ret_push['filelist'][idx]
             filename4 = ret_fetch['filelist'][idx]
             if not (local_fetch_option == 'nocopy' and map_fetch):
@@ -349,17 +356,33 @@ class TestFileTransferRemote(unittest.TestCase):
             # 3 and 4
             if not (local_fetch_option == 'nocopy' and map_fetch):
                 if not strip_append_prefix:
-                    assert filename4 == filename3 if relative_fetch else os.path.basename(filename3)
-                else:
-                    assert filename4 == file if relative_push else os.path.basename(filename3)
+                    self.assertEqual(filename4, filename3 if relative_fetch else filebase)
+                else:  # this implies relative fetch already
+                    self.assertTrue(relative_fetch)
+                    self.assertEqual(filename4, file if relative_push else filebase)
             else:
-                assert filename4 == filename3
+                self.assertEqual(filename4, filename3)
 
-            # the files (filename1 and filename5) are indeed the same.
+            # 4 and 5 should be the same, and 2 and 3 should be the same
+            assert os.path.samefile(filename2, os.path.join(remote_dir_root, remote_data_dir, filename3))
+            if not (local_fetch_option == 'nocopy' and map_fetch):
+                assert os.path.samefile(filename5, os.path.join(local_cache_dir, *subdirs_fetch, filename4))
+            else:
+                assert os.path.samefile(filename5, os.path.join(remote_dir_root, remote_data_dir, filename3))
+
+            # the files (filename1, filename2, and filename5) are indeed the same.
             self.assertTrue(os.path.exists(filename1))
+            self.assertTrue(os.path.exists(filename2))
             self.assertTrue(os.path.exists(filename5))
             assert not os.path.samefile(filename1, filename5)
+            assert not os.path.samefile(filename1, filename2)
+            if not (local_fetch_option == 'nocopy' and map_fetch):
+                assert not os.path.samefile(filename2, filename5)
+            else:
+                assert os.path.samefile(filename2, filename5)
             with open(filename1, 'rb') as f1, open(filename5, 'rb') as f2:
+                assert f1.read() == f2.read()
+            with open(filename1, 'rb') as f1, open(filename2, 'rb') as f2:
                 assert f1.read() == f2.read()
 
             # 3 and 4 are already normalized are relative.
