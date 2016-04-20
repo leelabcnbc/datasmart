@@ -34,7 +34,7 @@ class DB(Base):
         # we can't reconnect.
         assert self.client_instance is None
         # step 3. connect to database
-        client = MongoClient(self.config['url'], self.config['port'])
+        client = MongoClient(self.config['url'], self.config['port'], j=True)  # force journaling.
         # TODO: MongoClient is nonblocking, and auth is blocking. So if there's no auth, we don't discover bug
         # until much later.
         # which means that if there's no auth, this method can return yet no db is available.
