@@ -12,20 +12,13 @@ Contents:
    :maxdepth: 2
 
    user_guide/intro
+   user_guide/action_writing/manual_dbaction_with_schema
    modules/core/action
    modules/core/dbschema
    modules/core/filetransfer
    modules/actions/leelab/cortex_exp
 
 
-Core Modules
-============
-.. inheritance-diagram:: datasmart.core.base datasmart.core.db datasmart.core.filetransfer datasmart.core.dbschema datasmart.core.action
-
-
-Actions
-=======
-.. inheritance-diagram:: actions.cortex_exp
 
 
 
