@@ -24,6 +24,7 @@ The key features of an action inherited from :class:`datasmart.core.action.Manua
 #. No much computation is done in this action (this can be done however).
 #. One record at a time. Only one record will be inserted into the database after running the action.
 
+.. _manual-db-action-with-schema-workflow:
 
 General workflow of a ``ManualDBActionWithSchema``
 ==================================================
@@ -33,7 +34,7 @@ General workflow of a ``ManualDBActionWithSchema``
 #. A (trivial) database query is performed. At the same time, the ``_id`` of the record to be inserted is generated.
 #. A template for the record to be inserted is generated, usually named ``template.json`` under the local directory, and
    the action waits for the user to finish editing the template according to the specifics of the current experiment.
-#. The action will perform some additional processing of the templated edited by the user.
+#. The action performs some additional processing of the template edited by the user.
     #. verify the form of the template follows some predefined JSON schema. Here, the Python package `jsonschema`_ is
        used.
     #. do some additional verification which is not possible by JSON schema. For example, in
@@ -61,9 +62,68 @@ Concrete example
 .. todo:: Summer finish **Concrete example**.
 
 
-How to write a ``ManualDBActionWithSchema``
-===========================================
+How to write a ``ManualDBActionWithSchema`` based action
+========================================================
 
+General structure of the code for the action
+--------------------------------------------
+
+Generally speaking, there are three classes to defined.
+
+#.  the actual action class inherited from :class:`datasmart.core.action.ManualDBActionWithSchema`. The logic for (more
+    general) post processing of the edited template (step 4 in :ref:`manual-db-action-with-schema-workflow`) is defined
+    here.
+#.  a schema helper class inherited from :class:`datasmart.core.dbschema.DBSchema`. The logic for (easy) post processing
+    of the edited template (step 3 in :ref:`manual-db-action-with-schema-workflow`) is defined here.
+#.  a JSON schema definition class inherited from ``jsl.Document``. This in theory can be defined inside
+    the schema helper class, but maybe making it a separate class gives cleaner code.
+
+Schema definition
+-----------------
+First of all, it's strongly recommended to define strictly how a database record should look like, that is, a schema for
+the records to be inserted. The schema is defined using JSON schema via `jsonschema`_. Check
+:class:`datasmart.actions.leelab.corex_exp.CortexExpSchemaJSL` for an example.
+
+
+Schema class Definition
+-----------------------
+The JSON schema defined above need to be somehow linked to the ``ManualDBActionWithSchema`` action class. In DataSMART,
+this is done via a intermediate schema class inherited from :class:`datasmart.core.dbschema.DBSchema`. As an example,
+:class`datasmart.actions.leelab.corex_exp.CortexExpSchema` has the following things defined.
+
+#.  :attr:`datasmart.core.dbschema.DBSchema.schema_path`. This should best match
+    :attr:`datasmart.core.base.Base.config_path`, since this is the path where the template file will be read (unless
+    your template is embedded in the code or generated on-the-fly, but still it's good to match them for doc purpose).
+#.  :meth:`datasmart.core.dbschema.DBSchema.get_schema`. This defines where to read the JSON schema.
+    By default, it will read file ``schema.json`` under :attr:`datasmart.core.dbschema.DBSchema.schema_path`,
+    but it's recommended to override this method and specify the
+    schema to be obtained from the JSON schema definition class directly, since raw JSON schema files are more difficult
+    to write or maintain.
+#.  :meth:`datasmart.core.dbschema.DBSchema.get_template`. This is the method to get the text of the record template.
+    By default, it will read the template from ``template.json``
+    under :attr:`datasmart.core.dbschema.DBSchema.schema_path`,
+    run :meth:`datasmart.core.dbschema.DBSchema.post_process_template` against it, verify it against the schema.
+    I don't recommend changing this method at all, since there's some verification logic in the default method.
+    However, if you really need some mechanism to generate the template on the fly without any concrete template file to
+    begin with, you can simply implement all these in :meth:`datasmart.core.dbschema.DBSchema.post_process_template` and use an
+    empty template file for ``template.json``.
+#.  :meth:`datasmart.core.dbschema.DBSchema.post_process_template`. This method does some post processing the raw template
+    file before presenting it to the user. For example,
+    in :meth:`datasmart.actions.leelab.cortex_exp.CortexExpSchema.post_process_template`, the current timestamp, and some
+    info about the git repository for experiments is plugged into the raw template file.
+#.  :meth:`datasmart.core.dbschema.DBSchema.post_process_record` This handles the (easy) post processing logic after the
+    user has edited the template. See :meth:`datasmart.actions.leelab.cortex_exp.CortexExpSchema.post_process_record` for
+    an example.
+
+Action class definition
+-----------------------
+
+#.  :attr:`datasmart.core.action.DBAction.table_path` the ``(database, collection)`` tuple specifying where to insert
+    the record in the database.
+#.  :attr:`datasmart.core.base.Base.config_path` location of the all related config files.
+#.  :attr:`datasmart.core.action.DBActionWithSchema.dbschema` should be set to the helper schema class defined.
+#.  :meth:`datasmart.core.action.ManualDBActionWithSchema.before_insert_record`
+    defines the (more general) post processing before inserting the record.
 
 
 .. _CORTEX: http://www.nimh.nih.gov/labs-at-nimh/research-areas/clinics-and-labs/ln/shn/software-projects.shtml
