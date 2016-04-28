@@ -166,7 +166,7 @@ class LeelabCortexExpAction(unittest.TestCase):
                           ".tm doesn't exist!", ".itm doesn't exist!", ".cnd doesn't exist!", None]
 
         for wrong_type, exception_type, exception_msg in zip(wrong_types, exception_types, exception_msgs):
-            for _ in range(5):
+            for _ in range(20):
                 self.get_new_instance()
                 self.temp_dict['wrong_type'] = wrong_type
                 with self.assertRaises(exception_type) as exp_instance:
@@ -176,7 +176,7 @@ class LeelabCortexExpAction(unittest.TestCase):
                 self.remove_instance()
 
     def test_insert_correct_stuff(self):
-        for _ in range(20):
+        for _ in range(100):
             self.get_new_instance()
             self.temp_dict['wrong_type'] = 'correct'
             mock_util.run_mocked_action(self.action, {'input': self.mock_function})
