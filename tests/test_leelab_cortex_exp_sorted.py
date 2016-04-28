@@ -19,6 +19,8 @@ from test_util import mock_util, env_util, file_util
 class LeelabCortexExpSortedAction(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        # check git is clean
+        util.check_git_repo_clean(repopath=os.getcwd())
         # link to pymongo
         cls.collection_raw_key = ('temp', 'temp')
         env_util.setup_db(cls, [CortexExpSortedAction.table_path, cls.collection_raw_key])
@@ -170,6 +172,8 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
     def tearDownClass(cls):
         env_util.teardown_db(cls)
         env_util.teardown_local_config()
+        # check git is clean
+        util.check_git_repo_clean(repopath=os.getcwd())
 
     def test_insert_correct_stuff(self):
         for _ in range(100):

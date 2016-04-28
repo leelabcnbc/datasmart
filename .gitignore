@@ -65,9 +65,9 @@ target/
 .idea
 
 # exclude test config
-/tests/config/**
-/tests/prepare_result.p
-/tests/template.json
-/tests/query_template.py
-/tests/_data/**
+#/tests/config/**
+#/tests/prepare_result.p
+#/tests/template.json
+#/tests/query_template.py
+#/tests/_data/**
 

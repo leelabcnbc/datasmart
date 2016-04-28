@@ -18,6 +18,8 @@ import time
 class LeelabCortexExpAction(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        # check git is clean
+        util.check_git_repo_clean(repopath=os.getcwd())
         env_util.setup_db(cls, [CortexExpAction.table_path])
         filetransfer_config_text = """{{
           "local_data_dir": "_data",
@@ -133,6 +135,9 @@ class LeelabCortexExpAction(unittest.TestCase):
     def tearDownClass(cls):
         env_util.teardown_db(cls)
         env_util.teardown_local_config()
+
+        # check git is clean
+        util.check_git_repo_clean(repopath=os.getcwd())
 
     def test_insert_wrong_stuff(self):
         wrong_types = ['missing field', 'wrong monkey',

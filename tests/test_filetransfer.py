@@ -14,6 +14,17 @@ import itertools
 
 
 class TestFileTransferLocal(unittest.TestCase):
+
+    @classmethod
+    def tearDownClass(cls):
+        # check git is clean
+        datasmart.core.util.check_git_repo_clean(repopath=os.getcwd())
+
+    @classmethod
+    def setUpClass(cls):
+        # check git is clean
+        datasmart.core.util.check_git_repo_clean(repopath=os.getcwd())
+
     def setUp(self):
         config_this = {
             "local_data_dir": "_data",
