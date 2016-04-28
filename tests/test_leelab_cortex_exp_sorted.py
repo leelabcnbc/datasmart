@@ -176,7 +176,7 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
         util.check_git_repo_clean(repopath=os.getcwd())
 
     def test_insert_correct_stuff(self):
-        for _ in range(100):
+        for _ in range(20):
             self.get_new_instance()
             self.temp_dict['wrong_type'] = 'correct'
             mock_util.run_mocked_action(self.action, {'input': self.mock_function})
