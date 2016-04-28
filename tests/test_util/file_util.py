@@ -104,6 +104,8 @@ def create_files_from_filelist(filelist, local_data_dir, subdirs_this=None):
     for file in filelist:
         file_path = os.path.join(*([local_data_dir] + subdirs_this + [file]))
         os.makedirs(os.path.dirname(file_path), exist_ok=True)  # exist is possible although very unlikely.
+        if os.path.exists(file_path):
+            print("{} exist!".format(file_path))
         assert not os.path.exists(file_path)
         with open(file_path, 'w') as f:
             f.writelines(fake.sentences())
