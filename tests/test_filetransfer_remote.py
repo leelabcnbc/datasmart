@@ -85,7 +85,7 @@ class TestFileTransferRemote(unittest.TestCase):
         shutil.rmtree(local_data_dir)
 
 
-    #@unittest.skip("too long")
+    @unittest.skip("too long")
     def test_all(self):
         global local_map_dir_root
         global remote_dir_root

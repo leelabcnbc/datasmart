@@ -7,22 +7,6 @@ __pycache__/
 *.so
 
 # Distribution / packaging
-.Python
-env/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-.installed.cfg
-*.egg
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -63,11 +47,4 @@ target/
 
 # PyCharm
 .idea
-
-# exclude test config
-#/tests/config/**
-#/tests/prepare_result.p
-#/tests/template.json
-#/tests/query_template.py
-#/tests/_data/**
 
