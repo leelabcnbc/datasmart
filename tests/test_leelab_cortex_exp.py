@@ -21,32 +21,17 @@ class LeelabCortexExpAction(unittest.TestCase):
         # check git is clean
         util.check_git_repo_clean(repopath=os.getcwd())
         env_util.setup_db(cls, [CortexExpAction.table_path])
-        filetransfer_config_text = """{{
-          "local_data_dir": "_data",
-          "site_mapping_push": [
-          ],
-          "site_mapping_fetch": [
-          ],
-          "remote_site_config": {{
-            "localhost": {{
-              "ssh_username": "{}",
-              "ssh_port": 22
-            }}
-          }},
-          "default_site": {{
-            "path": "default_local_site",
-            "local": true
-          }},
-          "quiet": false,
-          "local_fetch_option": "copy"
-        }}""".format(getpass.getuser())
 
-        env_util.setup_local_config(('core', 'filetransfer'), filetransfer_config_text)
+
 
     def setUp(self):
+        # check git is clean
+        util.check_git_repo_clean(repopath=os.getcwd())
         # I put setup here only to pass in reference to class for mock function.
         self.mock_function = partial(LeelabCortexExpAction.input_mock_function, instance=self)
         self.config_path = CortexExpAction.config_path
+
+
 
     def get_correct_result(self):
         # create the correct result.
@@ -98,6 +83,32 @@ class LeelabCortexExpAction(unittest.TestCase):
         file_util.create_files_from_filelist(self.filelist_true, local_data_dir=self.site['prefix'])
 
     def get_new_instance(self):
+        # check git is clean
+        util.check_git_repo_clean(repopath=os.getcwd())
+
+
+        filetransfer_config_text = """{{
+            "local_data_dir": "_data",
+            "site_mapping_push": [
+            ],
+            "site_mapping_fetch": [
+            ],
+            "remote_site_config": {{
+              "localhost": {{
+                "ssh_username": "{}",
+                "ssh_port": 22
+              }}
+            }},
+            "default_site": {{
+              "path": "default_local_site",
+              "local": true
+            }},
+            "quiet": false,
+            "local_fetch_option": "copy"
+          }}""".format(getpass.getuser())
+
+        env_util.setup_local_config(('core', 'filetransfer'), filetransfer_config_text)
+
         self.dirs_to_cleanup = file_util.gen_unique_local_paths(1)  # for git
         file_util.create_dirs_from_dir_list(self.dirs_to_cleanup)
         self.git_mock_info = mock_util.setup_git_mock(git_repo_path=self.dirs_to_cleanup[0])
@@ -127,17 +138,24 @@ class LeelabCortexExpAction(unittest.TestCase):
         for file in self.files_to_cleanup:
             self.assertFalse(os.path.exists(file))
 
+        env_util.teardown_local_config()
+        # check git is clean
+        util.check_git_repo_clean(repopath=os.getcwd())
+
     def tearDown(self):
         # drop and then reset
         env_util.reset_db(self.__class__, CortexExpAction.table_path)
+        # check git is clean
+        util.check_git_repo_clean(repopath=os.getcwd())
 
     @classmethod
     def tearDownClass(cls):
         env_util.teardown_db(cls)
-        env_util.teardown_local_config()
-
         # check git is clean
         util.check_git_repo_clean(repopath=os.getcwd())
+
+
+
 
     def test_insert_wrong_stuff(self):
         wrong_types = ['missing field', 'wrong monkey',

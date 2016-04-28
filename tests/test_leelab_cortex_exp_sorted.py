@@ -24,11 +24,11 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
         # link to pymongo
         cls.collection_raw_key = ('temp', 'temp')
         env_util.setup_db(cls, [CortexExpSortedAction.table_path, cls.collection_raw_key])
-        assert not os.path.exists("config")
-        os.makedirs("config/core/filetransfer")
         cls.local_save_dir = '_data'  # this is the one used in the filetransfer config template.
 
     def setUp(self):
+        # check git is clean
+        util.check_git_repo_clean(repopath=os.getcwd())
         self.mock_function = partial(LeelabCortexExpSortedAction.input_mock_function, instance=self)
 
     def generate_files_for_sacbatch_and_spikesort(self):
@@ -39,6 +39,10 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
             f.close()
 
     def get_new_instance(self):
+        # check git is clean
+        util.check_git_repo_clean(repopath=os.getcwd())
+        assert not os.path.exists("config")
+        os.makedirs("config/core/filetransfer")
         self.dirs_to_cleanup = file_util.gen_unique_local_paths(1)  # 1 for git
         file_util.create_dirs_from_dir_list(self.dirs_to_cleanup)
         self.git_mock_info = mock_util.setup_git_mock(git_repo_path=self.dirs_to_cleanup[0])
@@ -164,16 +168,24 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
         env_util.teardown_remote_site(self.site_raw)
         time.sleep(0.25)  # buffer time for removal
 
+        env_util.teardown_local_config()
+        # check git is clean
+        util.check_git_repo_clean(repopath=os.getcwd())
+
     def tearDown(self):
         # drop and then reset
         env_util.reset_db(self.__class__, [CortexExpSortedAction.table_path, self.__class__.collection_raw_key])
 
+        # check git is clean
+        util.check_git_repo_clean(repopath=os.getcwd())
+
     @classmethod
     def tearDownClass(cls):
         env_util.teardown_db(cls)
-        env_util.teardown_local_config()
+
         # check git is clean
         util.check_git_repo_clean(repopath=os.getcwd())
+
 
     def test_insert_correct_stuff(self):
         for _ in range(20):
