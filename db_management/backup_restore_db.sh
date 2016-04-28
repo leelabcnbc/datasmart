@@ -39,6 +39,7 @@ fi
 
 # stop the container.
 docker exec ${CONTAINER} mongod --shutdown
+docker stop ${CONTAINER}  # double check. seems that sometimes after the previous command, the container is still running.
 
 # check that indeed the container is stopped.
 RUNNING=$(docker inspect --format="{{ .State.Running }}" $CONTAINER 2> /dev/null)
