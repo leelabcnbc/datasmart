@@ -4,6 +4,7 @@ from unittest import TestCase
 import os.path
 import shutil
 import pymongo
+import time
 from . import file_util
 
 def setup_db(cls_obj: TestCase, table_paths: list):
@@ -95,7 +96,9 @@ def setup_remote_site(subdirs_to_create=None):
 
 def teardown_remote_site(site):
     shutil.rmtree(site['prefix'])
+    time.sleep(0.1)  # buffer
 
 
 def teardown_local_config():
     shutil.rmtree("config")
+    time.sleep(0.1)  # buffer
