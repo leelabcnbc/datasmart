@@ -1,8 +1,8 @@
-pymongo
+pymongo>=3.2.2
 nose
-jsonschema
-rfc3987
-strict-rfc3339
+jsonschema>=2.5.1
+rfc3987>=1.3.5
+strict-rfc3339>=0.6
 fake-factory
-jsl
+jsl>=0.2.2
 pytz
