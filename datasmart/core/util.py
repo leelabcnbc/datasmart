@@ -116,7 +116,11 @@ def get_git_repo_hash(repopath):
                                    cwd=repopath).decode().strip()
 
 
-def check_git_repo_clean(repopath):
+def check_git_repo_clean(repopath=None):
+    if repopath is None:
+        # from <http://stackoverflow.com/questions/957928/is-there-a-way-to-get-the-git-root-directory-in-one-command>
+        repopath = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).decode().strip()
+        print(repopath)
     git_status_output = subprocess.check_output(['git', 'status', '--porcelain'],
                                                 cwd=repopath).decode().strip()
     assert not git_status_output, "the repository must be clean!"

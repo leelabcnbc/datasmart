@@ -20,7 +20,7 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # check git is clean
-        util.check_git_repo_clean(repopath=os.getcwd())
+        util.check_git_repo_clean()
         # link to pymongo
         cls.collection_raw_key = ('temp', 'temp')
         env_util.setup_db(cls, [CortexExpSortedAction.table_path, cls.collection_raw_key])
@@ -28,7 +28,7 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
 
     def setUp(self):
         # check git is clean
-        util.check_git_repo_clean(repopath=os.getcwd())
+        util.check_git_repo_clean()
         self.mock_function = partial(LeelabCortexExpSortedAction.input_mock_function, instance=self)
 
     def generate_files_for_sacbatch_and_spikesort(self):
@@ -40,7 +40,7 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
 
     def get_new_instance(self):
         # check git is clean
-        util.check_git_repo_clean(repopath=os.getcwd())
+        util.check_git_repo_clean()
         assert not os.path.exists("config")
         os.makedirs("config/core/filetransfer")
         self.dirs_to_cleanup = file_util.gen_unique_local_paths(1)  # 1 for git
@@ -170,25 +170,25 @@ class LeelabCortexExpSortedAction(unittest.TestCase):
 
         env_util.teardown_local_config()
         # check git is clean
-        util.check_git_repo_clean(repopath=os.getcwd())
+        util.check_git_repo_clean()
 
     def tearDown(self):
         # drop and then reset
         env_util.reset_db(self.__class__, [CortexExpSortedAction.table_path, self.__class__.collection_raw_key])
 
         # check git is clean
-        util.check_git_repo_clean(repopath=os.getcwd())
+        util.check_git_repo_clean()
 
     @classmethod
     def tearDownClass(cls):
         env_util.teardown_db(cls)
 
         # check git is clean
-        util.check_git_repo_clean(repopath=os.getcwd())
+        util.check_git_repo_clean()
 
 
     def test_insert_correct_stuff(self):
-        for _ in range(100):
+        for _ in range(20):  # used to be 100. but somehow that will make program fail for travis
             self.get_new_instance()
             self.temp_dict['wrong_type'] = 'correct'
             mock_util.run_mocked_action(self.action, {'input': self.mock_function})

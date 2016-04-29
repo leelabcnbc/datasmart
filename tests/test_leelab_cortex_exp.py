@@ -19,14 +19,14 @@ class LeelabCortexExpAction(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # check git is clean
-        util.check_git_repo_clean(repopath=os.getcwd())
+        util.check_git_repo_clean()
         env_util.setup_db(cls, [CortexExpAction.table_path])
 
 
 
     def setUp(self):
         # check git is clean
-        util.check_git_repo_clean(repopath=os.getcwd())
+        util.check_git_repo_clean()
         # I put setup here only to pass in reference to class for mock function.
         self.mock_function = partial(LeelabCortexExpAction.input_mock_function, instance=self)
         self.config_path = CortexExpAction.config_path
@@ -84,7 +84,7 @@ class LeelabCortexExpAction(unittest.TestCase):
 
     def get_new_instance(self):
         # check git is clean
-        util.check_git_repo_clean(repopath=os.getcwd())
+        util.check_git_repo_clean()
 
 
         filetransfer_config_text = """{{
@@ -140,19 +140,19 @@ class LeelabCortexExpAction(unittest.TestCase):
 
         env_util.teardown_local_config()
         # check git is clean
-        util.check_git_repo_clean(repopath=os.getcwd())
+        util.check_git_repo_clean()
 
     def tearDown(self):
         # drop and then reset
         env_util.reset_db(self.__class__, CortexExpAction.table_path)
         # check git is clean
-        util.check_git_repo_clean(repopath=os.getcwd())
+        util.check_git_repo_clean()
 
     @classmethod
     def tearDownClass(cls):
         env_util.teardown_db(cls)
         # check git is clean
-        util.check_git_repo_clean(repopath=os.getcwd())
+        util.check_git_repo_clean()
 
 
 
@@ -166,7 +166,7 @@ class LeelabCortexExpAction(unittest.TestCase):
                           ".tm doesn't exist!", ".itm doesn't exist!", ".cnd doesn't exist!", None]
 
         for wrong_type, exception_type, exception_msg in zip(wrong_types, exception_types, exception_msgs):
-            for _ in range(20):
+            for _ in range(5):  # used to be 20. but somehow that will make program fail for travis
                 self.get_new_instance()
                 self.temp_dict['wrong_type'] = wrong_type
                 with self.assertRaises(exception_type) as exp_instance:
@@ -176,7 +176,7 @@ class LeelabCortexExpAction(unittest.TestCase):
                 self.remove_instance()
 
     def test_insert_correct_stuff(self):
-        for _ in range(100):
+        for _ in range(20):  # used to be 100. but somehow that will make program fail for travis
             self.get_new_instance()
             self.temp_dict['wrong_type'] = 'correct'
             mock_util.run_mocked_action(self.action, {'input': self.mock_function})

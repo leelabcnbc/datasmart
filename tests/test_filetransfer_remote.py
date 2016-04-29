@@ -17,12 +17,12 @@ class TestFileTransferRemote(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         # check git is clean
-        datasmart.core.util.check_git_repo_clean(repopath=os.getcwd())
+        datasmart.core.util.check_git_repo_clean()
 
     @classmethod
     def setUpClass(cls):
         # check git is clean
-        datasmart.core.util.check_git_repo_clean(repopath=os.getcwd())
+        datasmart.core.util.check_git_repo_clean()
 
     def setup_config(self, nas_ip_address, local_data_dir, remote_data_dir, username):
         config_this = {

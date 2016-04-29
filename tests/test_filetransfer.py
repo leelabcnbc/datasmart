@@ -18,12 +18,12 @@ class TestFileTransferLocal(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         # check git is clean
-        datasmart.core.util.check_git_repo_clean(repopath=os.getcwd())
+        datasmart.core.util.check_git_repo_clean()
 
     @classmethod
     def setUpClass(cls):
         # check git is clean
-        datasmart.core.util.check_git_repo_clean(repopath=os.getcwd())
+        datasmart.core.util.check_git_repo_clean()
 
     def setUp(self):
         config_this = {
