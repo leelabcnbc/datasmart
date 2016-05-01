@@ -44,7 +44,7 @@ def main(install_folder, actions):
         shutil.copyfile(action_script_file, os.path.join(install_folder, action_flat_name + '.py'))
         # create a bash script to start it.
         bash_script = os.path.join(install_folder, 'start_' + action_flat_name + '.sh')
-        with open(bash_script, 'wt') as f:
+        with open(bash_script, 'wt', encoding='utf-8') as f:
             f.write('#!/usr/bin/env bash\n')
             f.write('. activate datasmart\n')
             f.write('export PYTHONPATH={}:PYTHONPATH\n'.format(current_dir))

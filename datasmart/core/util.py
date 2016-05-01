@@ -77,14 +77,14 @@ def load_config(module_name: tuple, filename='config.json', load_json=True):
     config_path_global = os.path.join(*path_list_global)
     if os.path.exists(config_path):
         # step 1. load config in current project.
-        with open(config_path, 'rt') as config_stream:
+        with open(config_path, 'rt', encoding='utf-8') as config_stream:
             if load_json:
                 config = json.load(config_stream)
             else:
                 config = config_stream.read()
     elif os.path.exists(config_path_global):
         # step 2. load config in ~/.datasmart
-        with open(config_path_global, 'rt') as config_stream:
+        with open(config_path_global, 'rt', encoding='utf-8') as config_stream:
             if load_json:
                 config = json.load(config_stream)
             else:

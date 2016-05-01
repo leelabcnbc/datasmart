@@ -130,13 +130,13 @@ class CortexExpSortedAction(DBActionWithSchema):
 
         main_script = util.load_config(self.__class__.config_path, 'sacbatch_and_spikesort_script.sh', load_json=False)
 
-        with open(os.path.join(local_dir, 'sacbatch_script.m'), 'wt') as f:
+        with open(os.path.join(local_dir, 'sacbatch_script.m'), 'wt', encoding='utf-8') as f:
             f.write(sacbatch_script)
-        with open(os.path.join(local_dir, 'spikesort_script.m'), 'wt') as f:
+        with open(os.path.join(local_dir, 'spikesort_script.m'), 'wt', encoding='utf-8') as f:
             f.write(spikesort_script)
 
         main_script_local = os.path.join(local_dir, 'sacbatch_and_spikesort_script.sh')
-        with open(main_script_local, 'wt') as f:
+        with open(main_script_local, 'wt', encoding='utf-8') as f:
             f.write(main_script)
         # add executable bit to the file.
         os.chmod(main_script_local, stat.S_IEXEC | os.stat(main_script_local).st_mode)
@@ -152,8 +152,8 @@ class CortexExpSortedAction(DBActionWithSchema):
 
         system_info_file = os.path.join(local_dir, 'system_info')
         sacbatch_output_file = os.path.join(local_dir, 'sacbatch_output')
-        open(system_info_file, 'w').close()
-        open(sacbatch_output_file, 'w').close()
+        open(system_info_file, 'wb').close()
+        open(sacbatch_output_file, 'wb').close()
         # add all permissions.
         os.chmod(system_info_file, 0o777)
         os.chmod(sacbatch_output_file, 0o777)
@@ -167,9 +167,9 @@ class CortexExpSortedAction(DBActionWithSchema):
         input("{} Step 2.5 press again if you are really sure you are finished.".format(self.class_identifier))
 
         # then collect info
-        with open(os.path.join(local_dir, 'system_info'), 'rt') as f:
+        with open(os.path.join(local_dir, 'system_info'), 'rt', encoding='utf-8') as f:
             system_info = f.read()
-        with open(os.path.join(local_dir, 'sacbatch_output'), 'rt') as f:
+        with open(os.path.join(local_dir, 'sacbatch_output'), 'rt', encoding='utf-8') as f:
             sacbatch_output = f.read()
         record['sort_config']['system_info'] = system_info
         record['sort_config']['sacbatch_output'] = sacbatch_output

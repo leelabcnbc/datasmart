@@ -14,11 +14,11 @@ def save_wait_and_load(content, savepath, prompt_text, load_json=True, overwrite
     if os.path.exists(savepath) and not overwrite:
         print("file exists! not overwritten.")
     else:
-        with open(savepath, 'wt') as f:
+        with open(savepath, 'wt', encoding='utf-8') as f:
             f.write(content)
     print('file created at {}'.format(savepath))
     input(prompt_text)
-    with open(savepath, 'rt') as f:
+    with open(savepath, 'rt', encoding='utf-8') as f:
         content_back = f.read()
         if load_json:
             return json.loads(content_back)
@@ -356,7 +356,7 @@ class DBAction(Action):
 
     def prepare(self):
         if not os.path.exists(self.__query_template_path):
-            with open(self.__query_template_path, 'wt') as f:
+            with open(self.__query_template_path, 'wt', encoding='utf-8') as f:
                 f.write(self.generate_query_doc_template())
             # TODO: add some non-interactive option to faciliate testing,
             # or use some tool to do it (probably 2nd is better for now)
@@ -372,7 +372,7 @@ class DBAction(Action):
             # run the query, passing it the database handle as 'client_instance'.
             locals_query = {'client_instance': self.__db_instance.client_instance}
             globals_query = {}
-            with open(self.__query_template_path, 'rt') as f:
+            with open(self.__query_template_path, 'rt', encoding='utf-8') as f:
                 exec(f.read(), globals_query, locals_query)
         finally:
             self.__db_instance.disconnect()
