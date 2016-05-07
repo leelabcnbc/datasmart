@@ -8,6 +8,7 @@ import pkgutil
 import pytz
 from .. import global_config
 import subprocess
+import unicodedata
 
 
 # removed for compatibility with readthedocs.
@@ -29,7 +30,11 @@ def joinpath_norm(path, *paths):
     :param paths:
     :return: normalized joined path.
     """
-    return os.path.normpath(os.path.join(path, *paths))
+    s = os.path.normpath(os.path.join(path, *paths))
+    assert s == os.path.normpath(s)
+    # make sure unique unicode normalization.
+    check_unique_unicode_normalization(s)
+    return s
 
 
 def normalize_filelist_relative(filelist: list, prefix='') -> list:
@@ -41,7 +46,7 @@ def normalize_filelist_relative(filelist: list, prefix='') -> list:
     """
     assert len(filelist) > 0
 
-    ret_filelist = [joinpath_norm(prefix, os.path.normpath(p)) for p in filelist]
+    ret_filelist = [joinpath_norm(prefix, p) for p in filelist]
     for p in ret_filelist:
         assert '\n' not in p, 'LF should not exist in file name!'
         assert '\r' not in p, 'CR should not exist in file name!'
@@ -129,3 +134,7 @@ def check_git_repo_clean(repopath=None):
 # config['cortex_expt_repo_path']
 #     cortex_expt_repo_url =
 #
+
+
+def check_unique_unicode_normalization(s: str) -> None:
+    assert s == unicodedata.normalize('NFC', s) == unicodedata.normalize('NFD', s), "unique normalization must exist!"

@@ -12,6 +12,7 @@ from . import util
 from . import schemautil
 import jsl
 import shlex
+import string
 
 
 class _SiteMappingSchema(jsl.Document):
@@ -153,9 +154,12 @@ class FileTransfer(Base):
         else:
             # remote site has prefix as well.
             assert sorted(site_new.keys()) == sorted(['path', 'prefix', 'local'])
+            # make sure it only has ASCII characters. Don't deal with Unicode.
+            for c in site_new['path']:
+                assert c in string.printable
             # convert everything to lower case and remove surrounding white characters.
             site_new['path'] = site_new['path'].lower().strip()
-            site_new['prefix'] = os.path.normpath(site_new['prefix'])
+            site_new['prefix'] = util.joinpath_norm(site_new['prefix'])
             assert os.path.isabs(site_new['prefix'])
 
         return site_new
@@ -222,7 +226,7 @@ class FileTransfer(Base):
         assert local_fetch_option in _LOCAL_FETCH_OPTIONS
 
         if strip_prefix:  # if it's not empty.
-            strip_prefix = os.path.normpath(strip_prefix)
+            strip_prefix = util.joinpath_norm(strip_prefix)
 
         # normalize the file list first.
         filelist = util.normalize_filelist_relative(filelist)
