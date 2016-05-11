@@ -61,6 +61,8 @@ else
     fi
     echo "backup file ${BACKUP_NAME} at ${BACKUP_HOST_DIR}"
     echo "restart ${CONTAINER}"
+# restart service first... see <https://github.com/docker/docker/issues/16816>
+    service docker restart
     docker start ${CONTAINER}
 fi
 
