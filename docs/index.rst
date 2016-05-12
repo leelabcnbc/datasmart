@@ -12,10 +12,14 @@ Contents:
    :maxdepth: 2
 
    user_guide/intro
+   user_guide/installation
    user_guide/action_writing/manual_dbaction_with_schema
    modules/core/action
    modules/core/dbschema
+   modules/core/db
    modules/core/filetransfer
+   modules/core/base
+   modules/core/util
    modules/actions/leelab/cortex_exp
 
 
