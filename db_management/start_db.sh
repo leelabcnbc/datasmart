@@ -58,7 +58,7 @@ if [ "$RUNNING" == "false" ]; then
     echo "CRITICAL - ${CONTAINER} is not running."
     # workaround for <https://github.com/docker/docker/issues/16816>
     #service docker restart
-    restart docker
+    /sbin/restart docker
     docker start ${CONTAINER}
 else
     echo "${CONTAINER} is running".
