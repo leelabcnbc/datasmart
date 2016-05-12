@@ -102,12 +102,43 @@ implemented in :func:`datasmart.core.util.load_config`. All configuration files 
 
 
 
+Setting up MongoDB
+==================
 
+.. todo:: more explanation on these scripts, especially how to restore.
 
+DataSMART needs a MongoDB database to store metadata about recorded data and data processing actions. One easy to
+install and maintain a (minimal, no replica set, no sharding) MongoDB database is using scripts under ``db_management``.
+These scripts can help setting up a MongoDB instance within `Docker`_.
 
+To use them, follow the steps below. They have been tested under Ubuntu 14.04.
 
+#. Install `Docker`_.
+#. change directory to ``db_management``.
+#. edit ``envs.sh``.
 
+   .. literalinclude:: /../db_management/envs.sh
+      :language: bash
 
+   * ``CONTAINER``: name of the Docker container.
+   * ``DATA_CONTAINER``: name of the associated Docker data container. It can be left as is if
+     you don't know what it is.
+   * ``BACKUP_HOST_DIR``: where to store the backup files for database.
+   * ``BACKUP_DOCKER_DIR``: the mapped location of ``BACKUP_HOST_DIR`` in Docker container. Don't need to change it.
+   * ``IMAGE_NAME``: name of Docker image. It should be one from https://hub.docker.com/_/mongo/
+#. Run ``./start_db.sh``. This will create backup directory, create data container and MongoDB container,
+   run the MongoDB, and set up a superuser in the database as described in ``setup_admin_script.js``.
+   Change the password immediately.
+#. (optional) to do backup automatically, add a line in ``root``'s cron table like the following, where
+   ``${XXX}`` should be replaced by the literal value of the root directory of DataSmart, and ``${BACKUP_HOST_DIR}``
+   by the literal value of that variable in ``envs.sh``.
+
+   .. code-block:: bash
+
+      # m h  dom mon dow   command
+        0 5  *   *   *     cd ${XXX}/db_management && XXX/db_management/backup_db.sh >> ${BACKUP_HOST_DIR}/log 2>&1
+
+.. _Docker: https://www.docker.com/
 .. _Anaconda: https://anaconda.org/
 .. _Miniconda: http://conda.pydata.org/miniconda.html
 
