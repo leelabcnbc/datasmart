@@ -62,7 +62,9 @@ else
     echo "backup file ${BACKUP_NAME} at ${BACKUP_HOST_DIR}"
     echo "restart ${CONTAINER}"
 # restart service first... see <https://github.com/docker/docker/issues/16816>
-    service docker restart
+    #service docker restart
+    # when running cron, the above line failed in Ubuntu 14.04. try this one instead.
+    restart docker
     docker start ${CONTAINER}
 fi
 
