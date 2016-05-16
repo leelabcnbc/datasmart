@@ -8,8 +8,7 @@ import pkgutil
 import pytz
 from .. import global_config
 import subprocess
-import unicodedata
-
+import string
 
 # removed for compatibility with readthedocs.
 # from typing import Union
@@ -33,7 +32,9 @@ def joinpath_norm(path, *paths):
     s = os.path.normpath(os.path.join(path, *paths))
     assert s == os.path.normpath(s)
     # make sure unique unicode normalization.
-    check_unique_unicode_normalization(s)
+    for c in s:
+        assert c in string.printable, "path {} has invalid character {}".format(s, c)
+    #check_unique_unicode_normalization(s)
     return s
 
 
@@ -136,5 +137,5 @@ def check_git_repo_clean(repopath=None):
 #
 
 
-def check_unique_unicode_normalization(s: str) -> None:
-    assert s == unicodedata.normalize('NFC', s) == unicodedata.normalize('NFD', s), "unique normalization must exist!"
+# def check_unique_unicode_normalization(s: str) -> None:
+#     assert s == unicodedata.normalize('NFC', s) == unicodedata.normalize('NFD', s), "unique normalization must exist!"
