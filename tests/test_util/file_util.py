@@ -3,6 +3,7 @@ import random
 from faker import Factory
 import string
 import shutil
+import time
 
 fake = Factory.create()
 
@@ -87,6 +88,9 @@ def rm_dirs_from_dir_list(dir_list):
     for dir in dir_list:
         assert os.path.isdir(dir)
         shutil.rmtree(dir)
+    time.sleep(0.25)  # buffer time for removal
+    for dir in dir_list:
+        assert not os.path.exists(dir), "dir {} still exist".format(dir)
 
 
 def rm_files_from_file_list(file_list, must_exist=True):
@@ -94,6 +98,9 @@ def rm_files_from_file_list(file_list, must_exist=True):
         if must_exist or os.path.exists(file):
             assert os.path.isfile(file)
             os.remove(file)
+    time.sleep(0.25)  # buffer time for removal
+    for file in file_list:
+        assert not os.path.exists(file), "file {} still exist".format(file)
 
 
 

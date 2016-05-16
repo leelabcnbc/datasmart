@@ -96,9 +96,11 @@ def setup_remote_site(subdirs_to_create=None):
 
 def teardown_remote_site(site):
     shutil.rmtree(site['prefix'])
-    time.sleep(0.1)  # buffer
+    time.sleep(0.25)  # buffer
+    assert not os.path.exists(site['prefix']), "{} still exists!".format(site['prefix'])
 
 
 def teardown_local_config():
     shutil.rmtree("config")
-    time.sleep(0.1)  # buffer
+    time.sleep(0.25)  # buffer
+    assert not os.path.exists("config"), "config still exists!"

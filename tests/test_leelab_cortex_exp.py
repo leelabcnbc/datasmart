@@ -12,7 +12,6 @@ from datasmart.actions.leelab.cortex_exp import CortexExpAction, CortexExpSchema
 from datasmart.core import schemautil
 from datasmart.core import util
 from test_util import env_util, mock_util, file_util
-import time
 
 
 class LeelabCortexExpAction(unittest.TestCase):
@@ -134,7 +133,6 @@ class LeelabCortexExpAction(unittest.TestCase):
         file_util.rm_files_from_file_list(self.files_to_cleanup)
         file_util.rm_dirs_from_dir_list(self.dirs_to_cleanup)
         env_util.teardown_remote_site(self.site)
-        time.sleep(0.25)  # buffer time for removal
         for file in self.files_to_cleanup:
             self.assertFalse(os.path.exists(file))
 
