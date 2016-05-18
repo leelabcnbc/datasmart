@@ -26,6 +26,22 @@ def save_wait_and_load(content, savepath, prompt_text, load_json=True, overwrite
             return content_back
 
 
+class DBContextManager():
+    def __init__(self, db_instance):
+        self.__db_instance = db_instance
+
+    def __enter__(self):
+        assert self.__db_instance.client_instance is None
+        self.__db_instance.connect()
+        return self.__db_instance
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.__db_instance.disconnect()
+        assert self.__db_instance.client_instance is None
+        if exc_type is None:
+            return True
+
+
 class Action(Base):
     @abstractmethod
     def __init__(self, config=None):
@@ -92,7 +108,7 @@ class DBAction(Action):
         prepare_path = self.get_prepare_path()
         self.__prepare_result_path = util.joinpath_norm(prepare_path, 'prepare_result.p')
         self.__query_template_path = util.joinpath_norm(prepare_path, 'query_template.py')
-        self.__db_instance = DB()
+        self.db_context = DBContextManager(DB())
 
         # you must define table_path as a class variable in the action.
         if self.__class__.db_modification:
@@ -143,24 +159,20 @@ class DBAction(Action):
 
     def insert_results(self, results):
         assert isinstance(results, list)
-        self.__db_instance.connect()
-        try:
-            collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
+        with self.db_context as db_instance:
+            collection_instance = db_instance.client_instance[self.table_path[0]][self.table_path[1]]
             for result in results:
                 assert result['_id'] in self.result_ids
                 assert isinstance(result['_id'], ObjectId)  # must be true by design.
                 assert collection_instance.count({"_id": result['_id']}) == 0
                 assert collection_instance.insert_one(result).acknowledged
-        finally:
-            self.__db_instance.disconnect()
 
     def push_files(self, _id: ObjectId, filelist: list, site: dict = None, relative: bool = True,
                    subdirs: list = None, dryrun: bool = False):
         assert _id in self.result_ids, "you can only push files related to you!"
         filetransfer_instance = FileTransfer()
-        self.__db_instance.connect()
-        try:
-            collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
+        with self.db_context as db_instance:
+            collection_instance = db_instance.client_instance[self.table_path[0]][self.table_path[1]]
             # make sure we don't push files after record is constructed.
             assert collection_instance.count({"_id": _id}) == 0, "only push files before inserting the record!"
             # push file under {prefix}/self.table_path[0]/self.table_path[1]/_id.
@@ -169,8 +181,6 @@ class DBAction(Action):
             ret = filetransfer_instance.push(filelist=filelist, dest_site=site, relative=relative, subdirs=subdirs,
                                              dest_append_prefix=list(self.table_path + (str(_id),)),
                                              dryrun=dryrun)
-        finally:
-            self.__db_instance.disconnect()
         return ret
 
     @staticmethod
@@ -256,17 +266,14 @@ class DBAction(Action):
         # then for loop
         # then check if is stale
         # then remove it if stale.
-        self.__db_instance.connect()
-        try:
-            collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
+        with self.db_context as db_instance:
+            collection_instance = db_instance.client_instance[self.table_path[0]][self.table_path[1]]
             for record in collection_instance.find():
-                if self.is_stale(record, self.__db_instance):
+                if self.is_stale(record, db_instance):
                     print("the following record will be cleaned up:")
                     print(record)
                     input("press enter to confirm... otherwise, press ctrl+c to stop")
                     self.remove_one_record(collection_instance, record)
-        finally:
-            self.__db_instance.disconnect()
 
     def revoke(self):
         """ delete result ids from the database, in case you want to start over.
@@ -274,15 +281,12 @@ class DBAction(Action):
         :return:
         """
         assert isinstance(self.result_ids, list)
-        self.__db_instance.connect()
-        try:
-            collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
+        with self.db_context as db_instance:
+            collection_instance = db_instance.client_instance[self.table_path[0]][self.table_path[1]]
             for _id in self.result_ids:
                 record = collection_instance.find_one({"_id": _id})
                 if record is not None:
                     self.remove_one_record(collection_instance, record)
-        finally:
-            self.__db_instance.disconnect()
         print("done clearing!")
 
     def is_inserted_one(self, _id):
@@ -291,13 +295,10 @@ class DBAction(Action):
         :param _id:
         :return:
         """
-        self.__db_instance.connect()
-        try:
-            collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
+        with self.db_context as db_instance:
+            collection_instance = db_instance.client_instance[self.table_path[0]][self.table_path[1]]
             if collection_instance.count({"_id": _id}) == 0:
                 return False
-        finally:
-            self.__db_instance.disconnect()
         return True
 
     def is_finished(self) -> bool:
@@ -315,15 +316,12 @@ class DBAction(Action):
         if not self.result_ids:  # empty list, always false, use force_finished to escape.
             return False
 
-        try:
-            self.__db_instance.connect()
-            collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
+        with self.db_context as db_instance:
+            collection_instance = db_instance.client_instance[self.table_path[0]][self.table_path[1]]
             for _id in self.result_ids:
                 assert isinstance(_id, ObjectId)
                 if collection_instance.count({"_id": _id}) == 0:
                     return False
-        finally:
-            self.__db_instance.disconnect()
 
         return True
 
@@ -367,15 +365,12 @@ class DBAction(Action):
                   "please confirm it and press Enter.".format(self.class_identifier, self.__query_template_path))
 
         assert os.path.exists(self.__query_template_path)
-        self.__db_instance.connect()
-        try:
+        with self.db_context as db_instance:
             # run the query, passing it the database handle as 'client_instance'.
-            locals_query = {'client_instance': self.__db_instance.client_instance}
+            locals_query = {'client_instance': db_instance.client_instance}
             globals_query = {}
             with open(self.__query_template_path, 'rt', encoding='utf-8') as f:
                 exec(f.read(), globals_query, locals_query)
-        finally:
-            self.__db_instance.disconnect()
         assert 'result' in locals_query, "I need a variable called 'result' after executing the query document!"
 
         # then based on this result, I need to generate a set of ids that will be inserted.
@@ -387,13 +382,10 @@ class DBAction(Action):
         # check that results are not found.
         assert isinstance(post_prepare_result['result_ids'], list)
         if post_prepare_result['result_ids']:
-            self.__db_instance.connect()
-            try:
-                collection_instance = self.__db_instance.client_instance[self.table_path[0]][self.table_path[1]]
+            with self.db_context as db_instance:
+                collection_instance = db_instance.client_instance[self.table_path[0]][self.table_path[1]]
                 for _id in post_prepare_result['result_ids']:
                     assert collection_instance.count({"_id": _id}) == 0, "the proposed result ids exist in the DB!"
-            finally:
-                self.__db_instance.disconnect()
 
         self.__result_ids = post_prepare_result['result_ids']
         self.__prepare_result = post_prepare_result
@@ -461,12 +453,11 @@ class DBAction(Action):
         """
         if table_path is None:
             table_path = self.table_path
-        self.__db_instance.connect()
-        try:
-            collection_instance = self.__db_instance.client_instance[table_path[0]][table_path[1]]
+
+        with self.db_context as db_instance:
+            collection_instance = db_instance.client_instance[table_path[0]][table_path[1]]
             return collection_instance.count({field_name: field_value})
-        finally:
-            self.__db_instance.disconnect()
+
 
 class DBActionWithSchema(DBAction):
     dbschema = DBSchema
