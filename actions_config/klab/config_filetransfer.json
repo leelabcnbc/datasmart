@@ -1,0 +1,63 @@
+{
+  "local_data_dir": "_data",
+  "site_mapping_push": [
+    {
+      "from": {
+        "path": "kuhlman-nas.bio.cmu.edu",
+        "local": false,
+        "prefix": "/MatlabWork_ISI"
+      },
+      "to": {
+        "path": "/Volumes/MatlabWork_ISI",
+        "local": true
+      }
+    },
+    {
+      "from": {
+        "path": "micron-collab.bio.cmu.edu",
+        "local": false,
+        "prefix": "/RawCaDataArchive"
+      },
+      "to": {
+        "path": "/Volumes/RawCaDataArchive",
+        "local": true
+      }
+    }
+  ],
+  "site_mapping_fetch": [
+    {
+      "from": {
+        "path": "kuhlman-nas.bio.cmu.edu",
+        "local": false,
+        "prefix": "/MatlabWork_ISI"
+      },
+      "to": {
+        "path": "/Volumes/MatlabWork_ISI",
+        "local": true
+      }
+    },
+    {
+      "from": {
+        "path": "micron-collab.bio.cmu.edu",
+        "local": false,
+        "prefix": "/RawCaDataArchive"
+      },
+      "to": {
+        "path": "/Volumes/RawCaDataArchive",
+        "local": true
+      }
+    }
+  ],
+  "remote_site_config": {
+    "localhost": {
+      "ssh_username": "yourname",
+      "ssh_port": 22
+    }
+  },
+  "default_site": {
+    "path": "default_local_site",
+    "local": true
+  },
+  "quiet": false,
+  "local_fetch_option": "copy"
+}

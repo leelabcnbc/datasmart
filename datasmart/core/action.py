@@ -439,6 +439,34 @@ class DBAction(Action):
         """
         pass
 
+    def check_file_exists(self, site, filelist, unique=True):
+        """ check that all files in filelist exist on site.
+
+        :param site:
+        :param filelist:
+        :param unique:
+        :return:
+        """
+        # here, case is normalized.
+        filelist_base = [os.path.basename(f).lower().strip() for f in filelist]
+        if unique:
+            assert len(set(filelist_base)) == len(filelist), "all file names must be unique!"
+        ret = self.fetch_files(filelist, site=site, relative=True, local_fetch_option='copy', dryrun=True)
+        return ret
+
+    def check_field_count(self, table_path=None, field_name='_id', field_value=None):
+        """ check the number of occurence for a given simple query.
+
+        :return:
+        """
+        if table_path is None:
+            table_path = self.table_path
+        self.__db_instance.connect()
+        try:
+            collection_instance = self.__db_instance.client_instance[table_path[0]][table_path[1]]
+            return collection_instance.count({field_name: field_value})
+        finally:
+            self.__db_instance.disconnect()
 
 class DBActionWithSchema(DBAction):
     dbschema = DBSchema

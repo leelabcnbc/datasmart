@@ -123,11 +123,7 @@ class CortexExpAction(ManualDBActionWithSchema):
         print("check that files are really there...")
         site = record['recorded_files']['site']
         filelist = record['recorded_files']['filelist']
-        filelist_base = [os.path.basename(f).lower().strip() for f in filelist]
-        assert len(set(filelist_base)) == len(filelist), "all file names must be unique!"
-        ret = self.fetch_files(filelist, site=site, relative=True, local_fetch_option='copy',
-                               dryrun=True)
-        # use normalized site and filelist
+        ret = self.check_file_exists(site, filelist, unique=True)
         record['recorded_files']['site'] = ret['src']
         record['recorded_files']['filelist'] = ret['filelist']
 
