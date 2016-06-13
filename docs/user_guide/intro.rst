@@ -78,6 +78,26 @@ G-Node
     release of Neo is broken, and although there's a new one in the master branch, I don't want to use a dev version),
     compared to BlackRock's official MATLAB package `NPMK`_.
 
+DataJoint
+    There are two main problems with DataJoint IMO.
+
+    #. You have to store all the data in the database itself. This causes three problems. 1) data
+       files can be huge, and database can't hold them. 2) the data is saved in an opaque way, and it's only understood
+       by DataJoint, and thus you can't fetch the data manually without DataJoint. 3) The type of data supported to be
+       stored in DataJoint is limited, see
+       `my discussion with authors of DataJoint <https://github.com/datajoint/datajoint-matlab/issues/49/>`_.
+       On the contrary, DataSMART encourages people to only save links to your data files in the database, and provides
+       mechanism to fetch them automatically from where they are located, say a FTP file server.
+       This design can handle any data format and allow people to browse data manually if needed,
+       because the data files are stored in a regular file system.
+    #. The schema design has little flexibility in DataJoint, due to its tie to relational database. For example, to
+       record the information about an experiment session, we may have to keep track the locations of multiple raw data
+       files. Since it's impossible or difficult to save a list of file locations in a single row for a relational
+       database, we have to create at least two tables to save metadata for experiment sessions, where one table keeps
+       tracks of those singleton properties of an session, and the other keeps track of data files for sessions,
+       each file being a row. In DataSMART, since we can save data in a JSON-like format,
+       we can easily save all the information about one session in one table.
+       The use of MongoDB in DataSMART makes schema design easier.
 
 
 .. _Lee Lab: http://leelab.cnbc.cmu.edu
