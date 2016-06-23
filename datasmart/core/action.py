@@ -65,6 +65,10 @@ class Action(Base):
         pass
 
     @abstractmethod
+    def post_perform(self) -> None:
+        pass
+
+    @abstractmethod
     def is_prepared(self) -> bool:
         """ check if first phase is done.
 
@@ -96,11 +100,16 @@ class Action(Base):
             assert self.is_prepared(), "the action has not been prepared!"
             self.perform()
             assert self.is_finished(), "the action has been performed, but not considered finished!"
+            self.post_perform()
 
 
 class DBAction(Action):
     table_path = (None, None)
     db_modification = True  # whether this action would change the DB.
+    no_query = False  # whether there's only trival query so that I can skip.
+
+    def post_perform(self):
+        print("remember to rm prepare_result.p and query_template.py if you want to start over for new action!")
 
     @abstractmethod
     def __init__(self, config=None):
@@ -358,11 +367,13 @@ class DBAction(Action):
                 f.write(self.generate_query_doc_template())
             # TODO: add some non-interactive option to faciliate testing,
             # or use some tool to do it (probably 2nd is better for now)
-            input("{} Step 0a a query doc template is at {}, "
-                  "please finish it and press Enter".format(self.class_identifier, self.__query_template_path))
+            if not self.__class__.no_query:
+                input("{} Step 0a a query doc template is at {}, "
+                      "please finish it and press Enter".format(self.class_identifier, self.__query_template_path))
         else:
-            input("{} Step 0b the query doc is already at {},"
-                  "please confirm it and press Enter.".format(self.class_identifier, self.__query_template_path))
+            if not self.__class__.no_query:
+                input("{} Step 0b the query doc is already at {},"
+                      "please confirm it and press Enter.".format(self.class_identifier, self.__query_template_path))
 
         assert os.path.exists(self.__query_template_path)
         with self.db_context as db_instance:
@@ -491,6 +502,8 @@ class DBActionWithSchema(DBAction):
 
 
 class ManualDBActionWithSchema(DBActionWithSchema):
+    no_query = True  # skip trivial query.
+
     def is_stale(self, record, db_instance) -> bool:
         # manually typed stuff never goes stale...
         return False
