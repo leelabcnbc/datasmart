@@ -21,16 +21,12 @@ class LeelabCortexExpAction(unittest.TestCase):
         util.check_git_repo_clean()
         env_util.setup_db(cls, [CortexExpAction.table_path])
 
-
-
     def setUp(self):
         # check git is clean
         util.check_git_repo_clean()
         # I put setup here only to pass in reference to class for mock function.
         self.mock_function = partial(LeelabCortexExpAction.input_mock_function, instance=self)
         self.config_path = CortexExpAction.config_path
-
-
 
     def get_correct_result(self):
         # create the correct result.
@@ -43,23 +39,18 @@ class LeelabCortexExpAction(unittest.TestCase):
         correct_result['experiment_name'] = self.temp_dict['experiment_name']
         correct_result['timing_file_name'] = self.temp_dict['timing_file_name']
         correct_result['condition_file_name'] = self.temp_dict['condition_file_name']
+        correct_result['parameter_file_name'] = self.temp_dict['parameter_file_name']
         correct_result['item_file_name'] = self.temp_dict['item_file_name']
         correct_result['recorded_files'] = dict()
         correct_result['recorded_files']['site'] = self.site
         correct_result['recorded_files']['filelist'] = self.filelist_true
-        # TODO has some test case for this mapping stuff.
-        correct_result['condition_stimulus_mapping'] = [
-            {"condition_number": 1, "stimuli": ["a1.ctx", "a2.ctx"]},
-            {"condition_number": 2, "stimuli": ["b1.ctx", "b2.ctx"]},
-            {"condition_number": 3, "stimuli": ["a1.ctx", "b2.ctx"]},
-            {"condition_number": 4, "stimuli": ["a2.ctx", "b1.ctx"]}
-        ]
-        correct_result['additional_parameters'] = " ".join(file_util.fake.sentences())
+        correct_result['additional_parameters'] = file_util.fake.pydict(5, True, 'int', 'float', 'str')
         correct_result['notes'] = " ".join(file_util.fake.sentences())
 
         correct_result['timing_file_sha1'] = self.temp_dict['timing_file_sha1']
         correct_result['condition_file_sha1'] = self.temp_dict['condition_file_sha1']
         correct_result['item_file_sha1'] = self.temp_dict['item_file_sha1']
+        correct_result['parameter_file_sha1'] = self.temp_dict['parameter_file_sha1']
         self.temp_dict['correct_result'] = correct_result
 
     def setup_cortex_exp_files(self):
@@ -68,10 +59,12 @@ class LeelabCortexExpAction(unittest.TestCase):
         self.temp_dict['timing_file_name'] = file_util.gen_filename_strict_lower() + '.tm'
         self.temp_dict['condition_file_name'] = file_util.gen_filename_strict_lower() + '.cnd'
         self.temp_dict['item_file_name'] = file_util.gen_filename_strict_lower() + '.itm'
+        self.temp_dict['parameter_file_name'] = file_util.gen_filename_strict_lower() + '.par'
         filelist_full = [os.path.join(self.git_mock_info['git_repo_path'], self.temp_dict['experiment_name'], x) for x
                          in [self.temp_dict['timing_file_name'],
                              self.temp_dict['condition_file_name'],
-                             self.temp_dict['item_file_name']]]
+                             self.temp_dict['item_file_name'],
+                             self.temp_dict['parameter_file_name']]]
         file_util.create_files_from_filelist(filelist_full, local_data_dir='.')
         with open(filelist_full[0], 'rb') as f:
             self.temp_dict['timing_file_sha1'] = hashlib.sha1(f.read()).hexdigest()
@@ -79,12 +72,13 @@ class LeelabCortexExpAction(unittest.TestCase):
             self.temp_dict['condition_file_sha1'] = hashlib.sha1(f.read()).hexdigest()
         with open(filelist_full[2], 'rb') as f:
             self.temp_dict['item_file_sha1'] = hashlib.sha1(f.read()).hexdigest()
+        with open(filelist_full[3], 'rb') as f:
+            self.temp_dict['parameter_file_sha1'] = hashlib.sha1(f.read()).hexdigest()
         file_util.create_files_from_filelist(self.filelist_true, local_data_dir=self.site['prefix'])
 
     def get_new_instance(self):
         # check git is clean
         util.check_git_repo_clean()
-
 
         filetransfer_config_text = """{{
             "local_data_dir": "_data",
@@ -152,16 +146,16 @@ class LeelabCortexExpAction(unittest.TestCase):
         # check git is clean
         util.check_git_repo_clean()
 
-
-
-
     def test_insert_wrong_stuff(self):
         wrong_types = ['missing field', 'wrong monkey',
-                       'nonexistent tm', 'nonexistent itm', 'nonexistent cnd', 'nonexistent recording files']
+                       'nonexistent tm', 'nonexistent itm', 'nonexistent cnd',
+                       'nonexistent par', 'nonexistent recording files']
         exception_types = [ValidationError, ValidationError,
-                           AssertionError, AssertionError, AssertionError, CalledProcessError]
+                           AssertionError, AssertionError, AssertionError,
+                           AssertionError, CalledProcessError]
         exception_msgs = [None, None,
-                          ".tm doesn't exist!", ".itm doesn't exist!", ".cnd doesn't exist!", None]
+                          ".tm doesn't exist!", ".itm doesn't exist!", ".cnd doesn't exist!", ".par doesn't exist!",
+                          None]
 
         for wrong_type, exception_type, exception_msg in zip(wrong_types, exception_types, exception_msgs):
             for _ in range(5):  # used to be 20. but somehow that will make program fail for travis
@@ -190,6 +184,7 @@ class LeelabCortexExpAction(unittest.TestCase):
             del result['timing_file_sha1']
             del result['item_file_sha1']
             del result['condition_file_sha1']
+            del result['parameter_file_sha1']
             self.assertTrue(schemautil.validate(CortexExpSchemaJSL.get_schema(), result))
             self.action.revoke()
             env_util.assert_not_found(self.__class__, [result_id])
@@ -208,12 +203,11 @@ class LeelabCortexExpAction(unittest.TestCase):
             record['timing_file_name'] = instance.temp_dict['correct_result']['timing_file_name']
             record['condition_file_name'] = instance.temp_dict['correct_result']['condition_file_name']
             record['item_file_name'] = instance.temp_dict['correct_result']['item_file_name']
+            record['parameter_file_name'] = instance.temp_dict['correct_result']['parameter_file_name']
             record['recorded_files'] = instance.temp_dict['correct_result']['recorded_files']
             record['additional_parameters'] = instance.temp_dict['correct_result']['additional_parameters']
             record['notes'] = instance.temp_dict['correct_result']['notes']
             record['monkey'] = instance.temp_dict['correct_result']['monkey']
-            record['condition_stimulus_mapping'] = instance.temp_dict['correct_result']['condition_stimulus_mapping']
-            # now time to compute the correct time.
             instance.temp_dict['correct_result']['timestamp'] = util.rfc3339_to_datetime(record['timestamp'])
             wrong_type = instance.temp_dict['wrong_type']
             if wrong_type == 'correct':
@@ -233,6 +227,9 @@ class LeelabCortexExpAction(unittest.TestCase):
             elif wrong_type == 'nonexistent itm':
                 record['item_file_name'] = file_util.gen_filename_strict_lower(
                     os.path.splitext(record['item_file_name'])[0]) + '.itm'
+            elif wrong_type == 'nonexistent par':
+                record['parameter_file_name'] = file_util.gen_filename_strict_lower(
+                    os.path.splitext(record['parameter_file_name'])[0]) + '.par'
             elif wrong_type == 'nonexistent recording files':
                 record['recorded_files']['filelist'] = instance.filelist_false
             else:

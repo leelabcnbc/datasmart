@@ -34,13 +34,6 @@ import hashlib
 import re
 monkeylist = ["leo", "koko", "gabby", "frugo"]
 
-class CortexExpSchemaConditionStimulusMappingJSL(jsl.Document):
-    """helper class defining the json schema for condition-stimuli mapping"""
-    condition_number = jsl.IntField(minimum=1, required=True)
-    stimuli = jsl.ArrayField(
-        items=jsl.StringField(pattern=schemautil.StringPatterns.strictFilenameLowerPattern('ctx')),
-        min_items=1, required=True)  # not necessarily unique.
-
 
 class CortexExpSchemaJSL(jsl.Document):
     """class defining json schema for a database record. See top of file"""
@@ -55,10 +48,10 @@ class CortexExpSchemaJSL(jsl.Document):
                                           required=True)
     item_file_name = jsl.StringField(pattern=schemautil.StringPatterns.strictFilenameLowerPattern('itm'),
                                      required=True)
-    condition_stimulus_mapping = jsl.ArrayField(items=jsl.DocumentField(CortexExpSchemaConditionStimulusMappingJSL),
-                                                min_items=1, unique_items=True, required=True)
+    parameter_file_name = jsl.StringField(pattern=schemautil.StringPatterns.strictFilenameLowerPattern('par'),
+                                          required=True)
     recorded_files = jsl.DocumentField(schemautil.filetransfer.FileTransferSiteAndFileListRemote, required=True)
-    additional_parameters = jsl.StringField(required=True)
+    additional_parameters = jsl.DictField(required=True)
     notes = jsl.StringField(required=True)
 
 
@@ -82,10 +75,12 @@ class CortexExpSchema(DBSchema):
         # check the item files, condition files, and timing files.
         file_to_check_list = [record['timing_file_name'],
                               record['condition_file_name'],
-                              record['item_file_name']]
+                              record['item_file_name'],
+                              record['parameter_file_name']]
         field_to_insert_list = ['timing_file_sha1',
                                 'condition_file_sha1',
-                                'item_file_sha1']
+                                'item_file_sha1',
+                                'parameter_file_sha1']
         for file_to_check, field_to_insert in zip(file_to_check_list, field_to_insert_list):
             file_to_check_full = os.path.join(self.config['repo_path'], record['experiment_name'], file_to_check)
             assert os.path.exists(file_to_check_full), "file {} doesn't exist!".format(file_to_check_full)
@@ -95,12 +90,6 @@ class CortexExpSchema(DBSchema):
             assert re.fullmatch(schemautil.StringPatterns.sha1Pattern, sha1_this)
             assert field_to_insert not in record
             record[field_to_insert] = sha1_this
-
-        # check that all condition numbers are unique, and each condition has same length of ctx files.
-        condition_number_list = [x['condition_number'] for x in record['condition_stimulus_mapping']]
-        stimuli_num_list = [len(x['stimuli']) for x in record['condition_stimulus_mapping']]
-        assert len(set(stimuli_num_list)) == 1, 'each condition should have same number of stimuli!'
-        assert len(set(condition_number_list)) == len(condition_number_list), "condition numbers are unique!"
 
         return record
 
