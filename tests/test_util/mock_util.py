@@ -27,6 +27,7 @@ def create_mocked_action(action_class: type, action_config=None, mock_options=No
         else:
             return action_class(action_class.normalize_config(action_config))
 
+
 def run_mocked_action(action: Action, mock_options=None):
     if mock_options is None:
         mock_options = dict()

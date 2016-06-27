@@ -162,7 +162,8 @@ class LeelabCortexExpAction(unittest.TestCase):
                 self.get_new_instance()
                 self.temp_dict['wrong_type'] = wrong_type
                 with self.assertRaises(exception_type) as exp_instance:
-                    mock_util.run_mocked_action(self.action, {'input': self.mock_function})
+                    mock_util.run_mocked_action(self.action, {'input': self.mock_function,
+                                                              'git': self.git_mock_info})
                 if exception_msg is not None:
                     self.assertNotEqual(exp_instance.exception.args[0].find(exception_msg), -1)
                 self.remove_instance()
@@ -171,7 +172,8 @@ class LeelabCortexExpAction(unittest.TestCase):
         for _ in range(20):  # used to be 100. but somehow that will make program fail for travis
             self.get_new_instance()
             self.temp_dict['wrong_type'] = 'correct'
-            mock_util.run_mocked_action(self.action, {'input': self.mock_function})
+            mock_util.run_mocked_action(self.action, {'input': self.mock_function,
+                                                      'git': self.git_mock_info})
             self.assertEqual(len(self.action.result_ids), 1)
             result_id = self.action.result_ids[0]
             result = env_util.assert_found_and_return(self.__class__, [result_id])[0]

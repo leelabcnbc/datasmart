@@ -71,9 +71,11 @@ class CortexExpSchema(DBSchema):
         :return: the final record to be inserted.
         """
 
+        # check git clean. I put it here for some mock related issues. Somehow putting git_hash under
+        # CortexExpSchema doesn't work.
         # check
         cortex_expt_repo_hash = util.get_git_repo_hash(self.config['repo_path'])
-        assert cortex_expt_repo_hash == record['code_repo']['repo_hash'],\
+        assert cortex_expt_repo_hash == record['code_repo']['repo_hash'], \
             'you may updated the repo after creating the template!'
         util.check_git_repo_clean(self.config['repo_path'])
 
