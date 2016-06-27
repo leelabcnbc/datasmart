@@ -70,6 +70,13 @@ class CortexExpSchema(DBSchema):
         :param record: the record input by the user and validated against the schema.
         :return: the final record to be inserted.
         """
+
+        # check
+        cortex_expt_repo_hash = util.get_git_repo_hash(self.config['cortex_expt_repo_path'])
+        assert cortex_expt_repo_hash == record['code_repo']['repo_hash'],\
+            'you may updated the repo after creating the template!'
+        util.check_git_repo_clean(self.config['cortex_expt_repo_path'])
+
         # convert string-based timestamp to actual Python ``datetime`` object
         record['timestamp'] = util.rfc3339_to_datetime(record['timestamp'])
         # check the item files, condition files, and timing files.
