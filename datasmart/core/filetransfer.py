@@ -6,7 +6,7 @@ import collections
 import os
 import subprocess
 import tempfile
-from datasmart import global_config
+from . import global_config
 from .base import Base
 from . import util
 from . import schemautil

@@ -6,7 +6,7 @@ import os
 import json
 import pkgutil
 import pytz
-from .. import global_config
+from . import global_config
 import subprocess
 import string
 
