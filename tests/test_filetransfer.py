@@ -2,16 +2,18 @@
 
 it's asssumed that datajoin package can be found now, probably by playing with PYTHONPATH.
 """
-import unittest
-import shutil
+import itertools
 import os
-from tests.test_util import file_util, env_util
+import shutil
+import unittest
+from copy import deepcopy
+
+
+
 import datasmart.core.filetransfer
 import datasmart.core.util
 from datasmart.core import schemautil
-from copy import deepcopy
-import itertools
-
+from datasmart.test_util import file_util
 
 class TestFileTransferLocal(unittest.TestCase):
 

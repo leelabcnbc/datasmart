@@ -4,7 +4,7 @@ import os.path
 import itertools
 from copy import deepcopy
 import datasmart.core.filetransfer
-from tests.test_util import file_util
+from datasmart.test_util import file_util
 import shutil
 import datasmart.core.util
 from datasmart.core import schemautil

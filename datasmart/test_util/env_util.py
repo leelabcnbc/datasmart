@@ -1,11 +1,14 @@
 """common methods for setting up a test"""
 
-from unittest import TestCase
 import os.path
 import shutil
-import pymongo
 import time
+from unittest import TestCase
+
+import pymongo
+
 from . import file_util
+
 
 def setup_db(cls_obj: TestCase, table_paths: list):
 

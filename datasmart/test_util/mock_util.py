@@ -2,6 +2,7 @@
 
 from contextlib import ExitStack
 from unittest import mock
+
 from datasmart.core.action import Action
 from . import file_util
 
