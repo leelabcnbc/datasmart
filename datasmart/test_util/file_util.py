@@ -25,7 +25,8 @@ def gen_filename():
     word_len = random.randint(1, 20)
 
     candidate = gen_filename_inner(word_len=word_len)
-    while candidate in datasmart.core.keywords:
+    while any([(candidate in kw) for kw in datasmart.core.keywords]):
+        # here, we use substring match, as query template and prepare result are now fully qualified.
         candidate = gen_filename_inner(word_len=word_len)
     return candidate
 

@@ -43,6 +43,10 @@ class DBContextManager():
 
 
 class Action(Base):
+    # @property
+    # def name(self):
+    #     return self.__class__.__module__ + '.' + self.__class__.__qualname__
+
     @abstractmethod
     def __init__(self, config=None):
         super().__init__(config)
@@ -108,15 +112,24 @@ class DBAction(Action):
     db_modification = True  # whether this action would change the DB.
     no_query = False  # whether there's only trival query so that I can skip.
 
+    @property
+    def prepare_result_name(self):
+        return '.'.join(self.config_path) + '.' + 'prepare_result.p'
+
+    @property
+    def query_template_name(self):
+        return '.'.join(self.config_path) + '.' + 'query_template.py'
+
     def post_perform(self):
-        print("remember to rm prepare_result.p and query_template.py if you want to start over for new action!")
+        print("remember to rm {} and {} if you want to start over for new action!".format(self.prepare_result_name,
+                                                                                          self.query_template_name))
 
     @abstractmethod
     def __init__(self, config=None):
         super().__init__(config)
         prepare_path = self.get_prepare_path()
-        self.__prepare_result_path = util.joinpath_norm(prepare_path, 'prepare_result.p')
-        self.__query_template_path = util.joinpath_norm(prepare_path, 'query_template.py')
+        self.__prepare_result_path = util.joinpath_norm(prepare_path, self.prepare_result_name)
+        self.__query_template_path = util.joinpath_norm(prepare_path, self.query_template_name)
         self.db_context = DBContextManager(DB())
 
         # you must define table_path as a class variable in the action.
@@ -351,9 +364,9 @@ class DBAction(Action):
             prepare_result = pickle.load(open(self.__prepare_result_path, 'rb'))
             assert 'result_ids' in prepare_result, "the pickled result looked bad!"
             assert prepare_result['_class_name_'] == self.__class__.__qualname__, \
-                "clean up 'prepare_result.p' and 'query_template.py', " \
+                "clean up '{}' and '{}', " \
                 "and possibly also 'template.json' under this directory, " \
-                "as they are for a different action"
+                "as they are for a different action".format(self.query_template_name, self.prepare_result_name)
             del prepare_result['_class_name_']
             self.__prepare_result = prepare_result
             self.__result_ids = prepare_result['result_ids']
