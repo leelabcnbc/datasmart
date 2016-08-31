@@ -5,7 +5,7 @@ it's asssumed that datajoin package can be found now, probably by playing with P
 import unittest
 import shutil
 import os
-from test_util import file_util, env_util
+from tests.test_util import file_util, env_util
 import datasmart.core.filetransfer
 import datasmart.core.util
 from datasmart.core import schemautil

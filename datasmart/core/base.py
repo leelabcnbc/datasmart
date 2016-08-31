@@ -4,7 +4,7 @@ core of DataSMART, defines basic config pass mechanism.
 
 """
 from abc import ABC, abstractmethod
-from .. import global_config
+from . import global_config
 from . import util
 
 

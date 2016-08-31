@@ -25,7 +25,7 @@ def gen_filename():
     word_len = random.randint(1, 20)
 
     candidate = gen_filename_inner(word_len=word_len)
-    while candidate in datasmart.keywords:
+    while candidate in datasmart.core.keywords:
         candidate = gen_filename_inner(word_len=word_len)
     return candidate
 
