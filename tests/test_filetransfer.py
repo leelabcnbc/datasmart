@@ -8,24 +8,23 @@ import shutil
 import unittest
 from copy import deepcopy
 
-
-
 import datasmart.core.filetransfer
-import datasmart.core.util
+import datasmart.core.util.util_old
 from datasmart.core import schemautil
 from datasmart.test_util import file_util
+
 
 class TestFileTransferLocal(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
         # check git is clean
-        datasmart.core.util.check_git_repo_clean()
+        datasmart.core.util.util_old.check_git_repo_clean()
 
     @classmethod
     def setUpClass(cls):
         # check git is clean
-        datasmart.core.util.check_git_repo_clean()
+        datasmart.core.util.util_old.check_git_repo_clean()
 
     def setUp(self):
         config_this = {
@@ -112,7 +111,7 @@ class TestFileTransferLocal(unittest.TestCase):
             subdirs_this = []
         if dest_append_prefix is None:
             dest_append_prefix = ['']
-        dest_append_prefix = datasmart.core.util.joinpath_norm(*dest_append_prefix)
+        dest_append_prefix = datasmart.core.util.util_old.joinpath_norm(*dest_append_prefix)
         # you must be relative path.
         self.assertFalse(os.path.isabs(dest_append_prefix))
         # check return value.
@@ -122,10 +121,10 @@ class TestFileTransferLocal(unittest.TestCase):
         self.assertEqual(ret['dest'], ret['dest_actual'])
 
         local_site_dict = {'local': True,
-                           'path': datasmart.core.util.joinpath_norm(os.path.abspath(self.local_data_dir),
-                                                                     *subdirs_this)}
+                           'path': datasmart.core.util.util_old.joinpath_norm(os.path.abspath(self.local_data_dir),
+                                                                              *subdirs_this)}
         external_site_dict = {'local': True,
-                              'path': datasmart.core.util.joinpath_norm(os.path.abspath(external_site))}
+                              'path': datasmart.core.util.util_old.joinpath_norm(os.path.abspath(external_site))}
         if not fetch_flag:
             external_site_dict['append_prefix'] = dest_append_prefix
 
@@ -137,8 +136,8 @@ class TestFileTransferLocal(unittest.TestCase):
             self.assertEqual(ret['dest'], external_site_dict)
 
         if not fetch_flag:
-            self.assertEqual(ret['filelist'], [datasmart.core.util.joinpath_norm(dest_append_prefix,
-                                                                                 x if relative else os.path.basename(x))
+            self.assertEqual(ret['filelist'], [datasmart.core.util.util_old.joinpath_norm(dest_append_prefix,
+                                                                                          x if relative else os.path.basename(x))
                                                for x in
                                                self.filelist])
         else:

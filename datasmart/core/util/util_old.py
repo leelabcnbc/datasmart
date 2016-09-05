@@ -6,9 +6,11 @@ import os
 import json
 import pkgutil
 import pytz
-from . import global_config
+from datasmart.core import global_config
 import subprocess
 import string
+from datasmart.core import schemautil
+
 
 # removed for compatibility with readthedocs.
 # from typing import Union
@@ -34,8 +36,47 @@ def joinpath_norm(path, *paths):
     # make sure unique unicode normalization.
     for c in s:
         assert c in string.printable, "path {} has invalid character {}".format(s, c)
-    #check_unique_unicode_normalization(s)
+    # check_unique_unicode_normalization(s)
     return s
+
+
+def normalize_site(site: dict) -> dict:
+    """ return a new normalized site.
+    primarily, we will normalize the path.
+
+    :param site: a site as as defined in class level doc.
+    :return: a normalized site.
+    """
+    # check that if only has keys path local and prefix.
+    site_new = site.copy()
+    if 'append_prefix' in site_new:
+        del site_new['append_prefix']
+
+    if site_new['local']:
+        # this will do even when ``site_new['path']`` is absolute.
+        # See the Python doc for ``os.path.join`` for why this is true.
+        site_new['path'] = joinpath_norm(global_config['project_root'], site_new['path'])
+    else:
+        # make sure it only has ASCII characters. Don't deal with Unicode.
+        for c in site_new['path']:
+            assert c in string.printable
+        # convert everything to lower case and remove surrounding white characters.
+        site_new['path'] = site_new['path'].lower().strip()
+        site_new['prefix'] = joinpath_norm(site_new['prefix'])
+
+    return site_new
+
+
+def normalize_site_mapping(site_mapping_old):
+    # validate & normalize path in mapping.
+    site_mapping_new = []
+    for map_pair in site_mapping_old:
+        assert (not map_pair['from']['local']) and (map_pair['to']['local'])  # must be remote to local map
+        # I normalize ``from`` as well, since later we may have a way to normalize remote site.
+        site_mapping_new.append(
+            {'from': normalize_site(map_pair['from']),
+             'to': normalize_site(map_pair['to'])})
+    return site_mapping_new
 
 
 def normalize_filelist_relative(filelist: list, prefix='') -> list:
@@ -59,6 +100,7 @@ def normalize_filelist_relative(filelist: list, prefix='') -> list:
         assert '/' not in b, 'directory separator should not exist in file name!'
         assert b and (b != '.') and (b != '..'), "no trival file name like empty, ., or ..!"
     return ret_filelist
+
 
 # this is uncommented due to readthedocs' poor support of Python 3.5 features a while ago.
 # def load_config(module_name: tuple, filename='config.json', load_json=True) -> Union[dict,str]:
@@ -132,10 +174,10 @@ def check_git_repo_clean(repopath=None):
     assert not git_status_output, "the repository must be clean!, check {}".format(git_status_output)
     return True
 
-# config['cortex_expt_repo_path']
-#     cortex_expt_repo_url =
-#
+    # config['cortex_expt_repo_path']
+    #     cortex_expt_repo_url =
+    #
 
 
-# def check_unique_unicode_normalization(s: str) -> None:
-#     assert s == unicodedata.normalize('NFC', s) == unicodedata.normalize('NFD', s), "unique normalization must exist!"
+    # def check_unique_unicode_normalization(s: str) -> None:
+    #     assert s == unicodedata.normalize('NFC', s) == unicodedata.normalize('NFD', s), "unique normalization must exist!"

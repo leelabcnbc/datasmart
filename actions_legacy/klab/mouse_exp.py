@@ -6,11 +6,13 @@ Format of a database record for this action.
 
 """
 
-from datasmart.core.dbschema import DBSchema
-from datasmart.core import util
-from datasmart.core.action import ManualDBActionWithSchema
 import jsl
+
 from datasmart.core import schemautil
+from datasmart.core.action import ManualDBActionWithSchema
+from datasmart.core.dbschema import DBSchema
+from datasmart.core.util import util_old
+
 
 class MouseExpSchemaJSL(jsl.Document):
     """class defining json schema for a database record. See top of file"""
@@ -47,11 +49,11 @@ class MouseExpSchema(DBSchema):
         :return: the final record to be inserted.
         """
         # convert string-based timestamp to actual Python ``datetime`` object
-        record['timestamp'] = util.rfc3339_to_datetime(record['timestamp'])
+        record['timestamp'] = util_old.rfc3339_to_datetime(record['timestamp'])
         return record
 
     def post_process_template(self, template: str) -> str:
-        template = template.replace("{{timestamp}}", util.current_timestamp())
+        template = template.replace("{{timestamp}}", util_old.current_timestamp())
         return template
 
 

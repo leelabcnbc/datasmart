@@ -1,6 +1,6 @@
 from datasmart.core import schemautil
-from datasmart.core import util
 from datasmart.core.action import DBAction
+from datasmart.core.util import util_old
 
 
 class FileDownloadAction(DBAction):
@@ -11,7 +11,7 @@ class FileDownloadAction(DBAction):
         super().__init__(config)
 
     def generate_query_doc_template(self) -> str:
-        return util.load_config(self.__class__.config_path, 'query_template.py', load_json=False)
+        return util_old.load_config(self.__class__.config_path, 'query_template.py', load_json=False)
 
     def validate_query_result(self, result) -> bool:
         # must be a good site + file list.
@@ -22,8 +22,8 @@ class FileDownloadAction(DBAction):
         site = self.prepare_result['site']
         filelist = self.prepare_result['filelist']
         print("prepare to download {} files from site {}...".format(len(filelist), str(site)))
-        print("downloaded files will be under {} of {}".format(util.joinpath_norm(*(self.config['savedir'])),
-                                                           self.get_file_transfer_config()['local_data_dir']))
+        print("downloaded files will be under {} of {}".format(util_old.joinpath_norm(*(self.config['savedir'])),
+                                                               self.get_file_transfer_config()['local_data_dir']))
         response = input("are you sure? Enter to move forward, enter anything then enter to stop")
         if response:
             print("operation stopped!")

@@ -4,15 +4,17 @@ The module for file transfer in DataSmart
 """
 import collections
 import os
+import shlex
 import subprocess
 import tempfile
-from . import global_config
-from .base import Base
-from . import util
-from . import schemautil
+
 import jsl
-import shlex
-import string
+
+from datasmart.core.util import util_old
+from datasmart.core.util.util_old import normalize_site_mapping, normalize_site
+from . import global_config
+from . import schemautil
+from .base import Base
 
 
 class _SiteMappingSchema(jsl.Document):
@@ -75,34 +77,36 @@ class FileTransfer(Base):
         """
 
         # let's validate first...
-        assert schemautil.validate(FileTransferConfigSchema.get_schema(), config)
+        assert schemautil.validate(FileTransferConfigSchema.get_schema(),
+                                   config), 'the config for filetransfer is invalid'
 
         # normalize local save
         # this works even when config['local_data_dir'] is absolute. see the official doc on
         # os.path.join to see why.
-        config['local_data_dir'] = util.joinpath_norm(global_config['project_root'], config['local_data_dir'])
-
+        config['local_data_dir'] = util_old.joinpath_norm(global_config['project_root'], config['local_data_dir'])
+        # create local dir
         if not os.path.exists(config['local_data_dir']):
             os.makedirs(config['local_data_dir'], exist_ok=True)
 
         # normalize site mapping.
-        config['site_mapping_push'] = FileTransfer.normalize_site_mapping(config['site_mapping_push'])
-        config['site_mapping_fetch'] = FileTransfer.normalize_site_mapping(config['site_mapping_fetch'])
+        config['site_mapping_push'] = normalize_site_mapping(config['site_mapping_push'])
+        config['site_mapping_fetch'] = normalize_site_mapping(config['site_mapping_fetch'])
 
         # normalize remote site config.
         # here site_path would be normalized.
         site_config_new = {}
         for site_path, site_conf in config['remote_site_config'].items():
             # I construct a temp remote site simply to get a normed path.
-            site_path_new = FileTransfer._normalize_site({'local': False, 'path': site_path, 'prefix': '/'})['path']
+            site_path_new = normalize_site({'local': False, 'path': site_path, 'prefix': '/'})['path']
             site_config_new[site_path_new] = site_conf
         config['remote_site_config'] = site_config_new
 
         # normalize default site.
-        config['default_site'] = FileTransfer._normalize_site(config['default_site'])
+        config['default_site'] = normalize_site(config['default_site'])
 
         # assert again.
-        assert schemautil.validate(FileTransferConfigSchema.get_schema(), config)
+        assert schemautil.validate(FileTransferConfigSchema.get_schema(),
+                                   config), 'the config for filetransfer is invalid'
         return config
 
     def _reformat_subdirs(self, subdirs: list) -> str:
@@ -111,58 +115,14 @@ class FileTransfer(Base):
         :param subdirs: a list of path components under ``_config['local_data_dir']``.
         :return:
         """
-        savepath_subdirs = util.joinpath_norm(*subdirs)
+        savepath_subdirs = util_old.joinpath_norm(*subdirs)
         assert not os.path.isabs(savepath_subdirs)
         # make sure savepath_subdirs is inside project root.
         # by checking that the common prefix of the local data dir and the subdir is local data dir.
         assert os.path.commonprefix([
-            util.joinpath_norm(self.config['local_data_dir'], savepath_subdirs), self.config['local_data_dir']
+            util_old.joinpath_norm(self.config['local_data_dir'], savepath_subdirs), self.config['local_data_dir']
         ]) == self.config['local_data_dir']
         return savepath_subdirs
-
-    @staticmethod
-    def normalize_site_mapping(site_mapping_old):
-        # validate & normalize path in mapping.
-        site_mapping_new = []
-        for map_pair in site_mapping_old:
-            assert (not map_pair['from']['local']) and (map_pair['to']['local'])  # must be remote to local map
-            # I normalize ``from`` as well, since later we may have a way to normalize remote site.
-            site_mapping_new.append(
-                {'from': FileTransfer._normalize_site(map_pair['from']),
-                 'to': FileTransfer._normalize_site(map_pair['to'])})
-        return site_mapping_new
-
-    @staticmethod
-    def _normalize_site(site: dict) -> dict:
-        """ return a new normalized site.
-        primarily, we will normalize the path.
-
-        :param site: a site as as defined in class level doc.
-        :return: a normalized site.
-        """
-        # check that if only has keys path local and prefix.
-        site_new = site.copy()
-        if 'append_prefix' in site_new:
-            del site_new['append_prefix']
-        if site_new['local']:
-            # local site only has path.
-            assert sorted(site_new.keys()) == sorted(['path', 'local'])
-            # this will do even when ``site_new['path']`` is absolute.
-            # See the Python doc for ``os.path.join`` for why this is true.
-            site_new['path'] = util.joinpath_norm(global_config['project_root'], site_new['path'])
-            assert os.path.isabs(site_new['path'])
-        else:
-            # remote site has prefix as well.
-            assert sorted(site_new.keys()) == sorted(['path', 'prefix', 'local'])
-            # make sure it only has ASCII characters. Don't deal with Unicode.
-            for c in site_new['path']:
-                assert c in string.printable
-            # convert everything to lower case and remove surrounding white characters.
-            site_new['path'] = site_new['path'].lower().strip()
-            site_new['prefix'] = util.joinpath_norm(site_new['prefix'])
-            assert os.path.isabs(site_new['prefix'])
-
-        return site_new
 
     def remove_dir(self, site: dict) -> None:
         """ remove an automatically generated directory by push.
@@ -173,17 +133,17 @@ class FileTransfer(Base):
         # make sure that append_prefix is not trivial.
 
         append_prefix = site['append_prefix']
-        assert util.joinpath_norm(append_prefix) != util.joinpath_norm('')
+        assert util_old.joinpath_norm(append_prefix) != util_old.joinpath_norm('')
         stdout_arg = subprocess.PIPE if self.config['quiet'] else None
 
         # remove is conceptually a push. so use mapping for push.
         site_mapped = self._site_mapping_push(site)
 
         if site_mapped['local']:
-            rm_site_spec = util.joinpath_norm(site_mapped['path'], append_prefix)
+            rm_site_spec = util_old.joinpath_norm(site_mapped['path'], append_prefix)
             full_command = ['rm', '-rf', rm_site_spec]
         else:
-            rm_site_spec_remote = util.joinpath_norm(site_mapped['prefix'], append_prefix)
+            rm_site_spec_remote = util_old.joinpath_norm(site_mapped['prefix'], append_prefix)
 
             site_info = self.config['remote_site_config'][site_mapped['path']]
 
@@ -226,15 +186,15 @@ class FileTransfer(Base):
         assert local_fetch_option in _LOCAL_FETCH_OPTIONS
 
         if strip_prefix:  # if it's not empty.
-            strip_prefix = util.joinpath_norm(strip_prefix)
+            strip_prefix = util_old.joinpath_norm(strip_prefix)
 
         # normalize the file list first.
-        filelist = util.normalize_filelist_relative(filelist)
-        savepath = util.joinpath_norm(self.config['local_data_dir'], self._reformat_subdirs(subdirs))
+        filelist = util_old.normalize_filelist_relative(filelist)
+        savepath = util_old.joinpath_norm(self.config['local_data_dir'], self._reformat_subdirs(subdirs))
         # make sure it exists.
         os.makedirs(savepath, exist_ok=True)
         # get actual src site
-        src_site = FileTransfer._normalize_site(src_site)
+        src_site = normalize_site(src_site)
         src_actual_site = self._site_mapping_fetch(src_site)
         # if src_site is local yet original passed site is remote (so there's mapping)
         # we need to make the filelist relative.
@@ -256,7 +216,7 @@ class FileTransfer(Base):
                 raise RuntimeError("can't be the case!")
 
         if copy_flag:
-            dest_site = FileTransfer._normalize_site({"path": savepath, "local": True})
+            dest_site = normalize_site({"path": savepath, "local": True})
             ret_filelist = self._transfer(src_actual_site, dest_site,
                                           filelist, {"relative": relative, 'dryrun': dryrun,
                                                      'strip_prefix': strip_prefix})
@@ -294,7 +254,7 @@ class FileTransfer(Base):
         if dest_append_prefix is None:
             dest_append_prefix = ['']
 
-        dest_append_prefix = util.joinpath_norm(*dest_append_prefix)
+        dest_append_prefix = util_old.joinpath_norm(*dest_append_prefix)
         # append prefix must be relative path.
         assert not (os.path.isabs(dest_append_prefix))
         if len(dest_append_prefix) == 2:
@@ -302,20 +262,20 @@ class FileTransfer(Base):
         elif len(dest_append_prefix) > 2:
             assert dest_append_prefix[:3] != '..' + os.path.sep
         # normalize the filelist first.
-        filelist = util.normalize_filelist_relative(filelist)
-        savepath = util.joinpath_norm(self.config['local_data_dir'], self._reformat_subdirs(subdirs))
+        filelist = util_old.normalize_filelist_relative(filelist)
+        savepath = util_old.joinpath_norm(self.config['local_data_dir'], self._reformat_subdirs(subdirs))
         # check that subdir exists.
         assert os.path.exists(savepath), "{} doesn't exist!".format(savepath)
 
         for file in filelist:
-            assert os.path.exists(util.joinpath_norm(savepath, file)), "the file {} must exist!".format(
-                util.joinpath_norm(savepath, file)
+            assert os.path.exists(util_old.joinpath_norm(savepath, file)), "the file {} must exist!".format(
+                util_old.joinpath_norm(savepath, file)
             )
 
         # get actual site
-        dest_site = FileTransfer._normalize_site(dest_site)
+        dest_site = normalize_site(dest_site)
         dest_actual_site = self._site_mapping_push(dest_site)
-        src_site = FileTransfer._normalize_site({"path": savepath, "local": True})
+        src_site = normalize_site({"path": savepath, "local": True})
         ret_filelist = self._transfer(src_site, dest_actual_site,
                                       filelist, {"relative": relative,
                                                  "dryrun": dryrun,
@@ -405,7 +365,7 @@ class FileTransfer(Base):
             os.remove(rsync_filelist_path)
 
         # return the canonical filelist on the dest. This should be relative for local dest, and absolute for remote.
-        ret_filelist = util.normalize_filelist_relative(rsync_filelist_to, prefix=options['dest_append_prefix'])
+        ret_filelist = util_old.normalize_filelist_relative(rsync_filelist_to, prefix=options['dest_append_prefix'])
 
         # strip prefix.
 
@@ -449,7 +409,7 @@ class FileTransfer(Base):
 
         if site['local']:
             # for local site, we don't need additional argument for ssh, only append prefix if needed.
-            rsync_site_spec = util.joinpath_norm(site['path'], append_prefix) + os.path.sep
+            rsync_site_spec = util_old.joinpath_norm(site['path'], append_prefix) + os.path.sep
             # sep is IMPORTANT to force it being a directory. This is useful when filelist only has ONE file.
             rsync_ssh_arg_site = None
         else:
@@ -458,7 +418,7 @@ class FileTransfer(Base):
             site_info = self.config['remote_site_config'][site['path']]
             prefix = site['prefix']
             rsync_site_spec = site_info['ssh_username'] + '@' + site['path'] + ':' + shlex.quote(
-                util.joinpath_norm(prefix, append_prefix) + os.path.sep)
+                util_old.joinpath_norm(prefix, append_prefix) + os.path.sep)
             # must quote since this string after ``:`` is parsed by remote shell. quote it to remove all wildcard
             # expansion... should test wild card to see if it works...
             rsync_ssh_arg_site = ['-e', "ssh -p {}".format(site_info['ssh_port'])]
@@ -480,7 +440,7 @@ class FileTransfer(Base):
             strip_prefix = ''
 
         # check that filenames don't contain weird characters, and get basename list.
-        rsync_filelist_from = util.normalize_filelist_relative(filelist)
+        rsync_filelist_from = util_old.normalize_filelist_relative(filelist)
 
         # add strip_prefix.
         for x in rsync_filelist_from:
@@ -494,9 +454,9 @@ class FileTransfer(Base):
             rsync_filelist_from_second = rsync_filelist_from
 
         # this second part is canonical
-        assert util.normalize_filelist_relative(rsync_filelist_from_second) == rsync_filelist_from_second
+        assert util_old.normalize_filelist_relative(rsync_filelist_from_second) == rsync_filelist_from_second
         # insertion of '/./' doesn't destroy anything.
-        assert util.normalize_filelist_relative(rsync_filelist_from) == util.normalize_filelist_relative(filelist)
+        assert util_old.normalize_filelist_relative(rsync_filelist_from) == util_old.normalize_filelist_relative(filelist)
 
         if not options['relative']:
             rsync_filelist_to = [os.path.basename(p) for p in rsync_filelist_from]

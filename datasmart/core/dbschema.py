@@ -1,7 +1,9 @@
 import json
-from jsonschema import Draft4Validator
 from abc import ABC, abstractmethod
-from . import util
+
+from jsonschema import Draft4Validator
+
+from datasmart.core.util import util_old
 from . import schemautil
 
 
@@ -54,14 +56,14 @@ class DBSchema(ABC):
         """
         :return: the dictionary of a JSON schema.
         """
-        return util.load_config(self.schema_path, 'schema.json')
+        return util_old.load_config(self.schema_path, 'schema.json')
 
     def get_template(self) -> str:
         """ this is only useful if you are going to manually type in the template.
 
         :return: the **string** of a JSON document.
         """
-        template_base = util.load_config(self.schema_path, 'template.json', load_json=False)
+        template_base = util_old.load_config(self.schema_path, 'template.json', load_json=False)
         processed_template = self.post_process_template(template_base)
         assert self.validate_record(json.loads(processed_template))
         return processed_template
