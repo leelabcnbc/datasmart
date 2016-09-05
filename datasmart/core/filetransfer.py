@@ -7,12 +7,11 @@ import os
 import shlex
 import subprocess
 import tempfile
-
 import jsl
-
-import datasmart.core.util.path
 from datasmart.core.util.path import (normalize_site, normalize_site_mapping,
-                                      get_rsync_filelist, get_site_mapping, reformat_subdirs)
+                                      get_rsync_filelist, get_site_mapping, reformat_subdirs, joinpath_norm,
+                                      normalize_filelist_relative)
+from datasmart.core.util.func import replace_none_args
 from . import global_config
 from . import schemautil
 from .base import Base
@@ -84,8 +83,8 @@ class FileTransfer(Base):
         # normalize local save
         # this works even when config['local_data_dir'] is absolute. see the official doc on
         # os.path.join to see why.
-        config['local_data_dir'] = datasmart.core.util.path.joinpath_norm(global_config['project_root'],
-                                                                          config['local_data_dir'])
+        config['local_data_dir'] = joinpath_norm(global_config['project_root'],
+                                                 config['local_data_dir'])
         # create local dir
         if not os.path.exists(config['local_data_dir']):
             os.makedirs(config['local_data_dir'], exist_ok=True)
@@ -122,10 +121,10 @@ class FileTransfer(Base):
         site_mapped = self._site_mapping_push(site)
 
         if site_mapped['local']:
-            rm_site_spec = datasmart.core.util.path.joinpath_norm(site_mapped['path'], append_prefix)
+            rm_site_spec = joinpath_norm(site_mapped['path'], append_prefix)
             full_command = ['rm', '-rf', rm_site_spec]
         else:
-            rm_site_spec_remote = datasmart.core.util.path.joinpath_norm(site_mapped['prefix'], append_prefix)
+            rm_site_spec_remote = joinpath_norm(site_mapped['prefix'], append_prefix)
 
             site_info = self.config['remote_site_config'][site_mapped['path']]
 
@@ -155,6 +154,18 @@ class FileTransfer(Base):
             raise RuntimeError("can't be the case!")
         return copy_flag
 
+    def _process_default_pars_fetch(self, src_site, subdirs,
+                                    local_fetch_option, strip_prefix):
+        src_site, subdirs, local_fetch_option = replace_none_args([src_site, subdirs, local_fetch_option],
+                                                                  [self.config['default_site'], [''],
+                                                                   self.config['local_fetch_option']])
+        assert local_fetch_option in _LOCAL_FETCH_OPTIONS
+
+        if strip_prefix:  # if it's not empty.
+            strip_prefix = joinpath_norm(strip_prefix)
+        assert not (os.path.isabs(strip_prefix))
+        return src_site, subdirs, local_fetch_option, strip_prefix
+
     def fetch(self, filelist: list, src_site: dict = None, relative: bool = False, subdirs: list = None,
               local_fetch_option=None, dryrun: bool = False, strip_prefix='') -> dict:
         """ fetch files from the site.
@@ -177,22 +188,14 @@ class FileTransfer(Base):
             otherwise a dict containing src, dest sites, filelist, and actual src and dest sites for dest.
             For fetch, actual src can be different from src due to mapping, and dest and actual dest are the same.
         """
+        src_site, subdirs, local_fetch_option, strip_prefix = self._process_default_pars_fetch(src_site, subdirs,
+                                                                                               local_fetch_option,
+                                                                                               strip_prefix)
 
-        if src_site is None:
-            src_site = self.config['default_site']
-        if subdirs is None:
-            subdirs = ['']
-        if local_fetch_option is None:
-            local_fetch_option = self.config['local_fetch_option']
-        assert local_fetch_option in _LOCAL_FETCH_OPTIONS
-
-        if strip_prefix:  # if it's not empty.
-            strip_prefix = datasmart.core.util.path.joinpath_norm(strip_prefix)
-        assert not (os.path.isabs(strip_prefix))
         # normalize the file list first.
-        filelist = datasmart.core.util.path.normalize_filelist_relative(filelist)
-        savepath = datasmart.core.util.path.joinpath_norm(self.config['local_data_dir'],
-                                                          reformat_subdirs(subdirs, self.config['local_data_dir']))
+        filelist = normalize_filelist_relative(filelist)
+        savepath = joinpath_norm(self.config['local_data_dir'],
+                                 reformat_subdirs(subdirs, self.config['local_data_dir']))
         # make sure it exists.
         os.makedirs(savepath, exist_ok=True)
         # get actual src site
@@ -219,6 +222,19 @@ class FileTransfer(Base):
         return {'src': src_site, 'dest': dest_site, 'filelist': ret_filelist,
                 'src_actual': src_actual_site, 'dest_actual': dest_site}
 
+    def _process_default_pars_push(self, dest_site, subdirs, dest_append_prefix):
+        dest_site, subdirs, dest_append_prefix = replace_none_args([dest_site, subdirs, dest_append_prefix],
+                                                                   [self.config['default_site'], [''], ['']])
+        dest_append_prefix = joinpath_norm(*dest_append_prefix)
+        # append prefix must be relative path.
+        assert not (os.path.isabs(dest_append_prefix))
+        # it should not go over current level, that is, not start with '..'
+        # if it does, then `aaa` should disappear.
+        if dest_append_prefix != joinpath_norm(*['']):  # special case for `.`
+            assert 'aaa' + os.path.sep + dest_append_prefix == joinpath_norm('aaa', dest_append_prefix)
+
+        return dest_site, subdirs, dest_append_prefix
+
     def push(self, filelist: list, dest_site: dict = None, relative: bool = True, subdirs: list = None,
              dest_append_prefix: list = None, dryrun: bool = False) -> dict:
         """ push files to the site.
@@ -238,32 +254,17 @@ class FileTransfer(Base):
             otherwise a dict containing src, dest sites, filelist, and actual src and dest sites for dest.
             For push, actual dest can be different from dest due to mapping, and src and actual src are the same.
         """
-        if dest_site is None:
-            dest_site = self.config['default_site']
-        if subdirs is None:
-            subdirs = ['']
-        if dest_append_prefix is None:
-            dest_append_prefix = ['']
-
-        dest_append_prefix = datasmart.core.util.path.joinpath_norm(*dest_append_prefix)
-        # append prefix must be relative path.
-        assert not (os.path.isabs(dest_append_prefix))
-        if len(dest_append_prefix) == 2:
-            assert dest_append_prefix != '..'
-        elif len(dest_append_prefix) > 2:
-            assert dest_append_prefix[:3] != '..' + os.path.sep
+        dest_site, subdirs, dest_append_prefix = self._process_default_pars_push(dest_site, subdirs, dest_append_prefix)
         # normalize the filelist first.
-        filelist = datasmart.core.util.path.normalize_filelist_relative(filelist)
-        savepath = datasmart.core.util.path.joinpath_norm(self.config['local_data_dir'],
-                                                          reformat_subdirs(subdirs, self.config['local_data_dir']))
+        filelist = normalize_filelist_relative(filelist)
+        savepath = joinpath_norm(self.config['local_data_dir'],
+                                 reformat_subdirs(subdirs, self.config['local_data_dir']))
         # check that subdir exists.
         assert os.path.exists(savepath), "{} doesn't exist!".format(savepath)
 
         for file in filelist:
             assert os.path.exists(
-                datasmart.core.util.path.joinpath_norm(savepath, file)), "the file {} must exist!".format(
-                datasmart.core.util.path.joinpath_norm(savepath, file)
-            )
+                joinpath_norm(savepath, file)), "the file {} must exist!".format(joinpath_norm(savepath, file))
 
         # get actual site
         dest_site = normalize_site(dest_site)
@@ -278,6 +279,20 @@ class FileTransfer(Base):
         return {'src': src_site, 'dest': dest_site, 'filelist': ret_filelist,
                 'src_actual': src_site, 'dest_actual': dest_actual_site}
 
+    def _process_default_pars_transfer(self, options, src, dest):
+        new_options = {
+            'dest_append_prefix': '',
+            'strip_prefix': '',
+        }
+        new_options.update(options)
+
+        if new_options['strip_prefix']:
+            assert new_options['relative'], "with non trivial strip prefix, must be in relative mode!"
+
+        # one of them must be local.
+        assert src['local'] or dest['local'], 'one of source and dest must be local'
+        return new_options
+
     def _transfer(self, src: dict, dest: dict, filelist: list, options: dict) -> list:
         """ core function for data transfer. Currently implemented in ``rsync``.
 
@@ -290,17 +305,7 @@ class FileTransfer(Base):
             Basically, ``dest['path'] + return value`` should give absolute path for files.
         """
 
-        if 'dest_append_prefix' not in options:
-            options['dest_append_prefix'] = ''
-        if 'strip_prefix' not in options:
-            options['strip_prefix'] = ''
-
-        if options['strip_prefix']:
-            assert options['relative'], "with non trivial strip prefix, must be in relative mode!"
-
-        # one of them must be local.
-        assert src['local'] or dest['local'], 'one of source and dest must be local'
-
+        options = self._process_default_pars_transfer(options, src, dest)
         # construct the rsync command.
         # since I use -from-file option in rsync,  by default, it's relative without ``rsync_relative_arg``.
         rsync_relative_arg = "--relative" if options['relative'] else "--no-relative"
@@ -355,8 +360,8 @@ class FileTransfer(Base):
             os.remove(rsync_filelist_path)
 
         # return the canonical filelist on the dest. This should be relative for local dest, and absolute for remote.
-        ret_filelist = datasmart.core.util.path.normalize_filelist_relative(rsync_filelist_to,
-                                                                            prefix=options['dest_append_prefix'])
+        ret_filelist = normalize_filelist_relative(rsync_filelist_to,
+                                                   prefix=options['dest_append_prefix'])
 
         # strip prefix.
 
@@ -390,7 +395,7 @@ class FileTransfer(Base):
 
         if site['local']:
             # for local site, we don't need additional argument for ssh, only append prefix if needed.
-            rsync_site_spec = datasmart.core.util.path.joinpath_norm(site['path'], append_prefix) + os.path.sep
+            rsync_site_spec = joinpath_norm(site['path'], append_prefix) + os.path.sep
             # sep is IMPORTANT to force it being a directory. This is useful when filelist only has ONE file.
             rsync_ssh_arg_site = None
         else:
@@ -399,7 +404,7 @@ class FileTransfer(Base):
             site_info = self.config['remote_site_config'][site['path']]
             prefix = site['prefix']
             rsync_site_spec = site_info['ssh_username'] + '@' + site['path'] + ':' + shlex.quote(
-                datasmart.core.util.path.joinpath_norm(prefix, append_prefix) + os.path.sep)
+                joinpath_norm(prefix, append_prefix) + os.path.sep)
             # must quote since this string after ``:`` is parsed by remote shell. quote it to remove all wildcard
             # expansion... should test wild card to see if it works...
             rsync_ssh_arg_site = ['-e', "ssh -p {}".format(site_info['ssh_port'])]

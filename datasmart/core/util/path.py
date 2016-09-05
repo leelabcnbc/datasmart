@@ -114,7 +114,7 @@ def get_rsync_filelist(filelist: list, options: dict) -> tuple:
 
     # add strip_prefix.
     for x in rsync_filelist_from:
-        assert x.startswith(strip_prefix)
+        assert x.startswith(strip_prefix), 'file {} does not start with prefix `{}`'.format(x, strip_prefix)
 
     # revise from list based on strip, and get files on remote host (relative)
     if strip_prefix:  # this needs to be added when strip_prefix is not empty.
