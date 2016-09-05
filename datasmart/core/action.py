@@ -33,7 +33,7 @@ def save_wait_and_load(content, savepath, prompt_text, load_json=True, overwrite
     return _load_file(savepath, load_json)
 
 
-class DBContextManager():
+class DBContextManager:
     def __init__(self, db_instance):
         self.__db_instance = db_instance
 
