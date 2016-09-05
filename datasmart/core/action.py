@@ -12,6 +12,16 @@ from .dbschema import DBSchema
 from .filetransfer import FileTransfer
 
 
+def _load_file(savepath, load_json):
+    """just created to have higher GPA in code climate"""
+    with open(savepath, 'rt', encoding='utf-8') as f:
+        content_back = f.read()
+        if load_json:
+            return json.loads(content_back)
+        else:
+            return content_back
+
+
 def save_wait_and_load(content, savepath, prompt_text, load_json=True, overwrite=False):
     if os.path.exists(savepath) and not overwrite:
         print("file exists! not overwritten.")
@@ -20,12 +30,7 @@ def save_wait_and_load(content, savepath, prompt_text, load_json=True, overwrite
             f.write(content)
     print('file created at {}'.format(savepath))
     input(prompt_text)
-    with open(savepath, 'rt', encoding='utf-8') as f:
-        content_back = f.read()
-        if load_json:
-            return json.loads(content_back)
-        else:
-            return content_back
+    return _load_file(savepath, load_json)
 
 
 class DBContextManager():
@@ -126,6 +131,13 @@ class DBAction(Action):
         print("remember to rm {} and {} if you want to start over for new action!".format(self.prepare_result_name,
                                                                                           self.query_template_name))
 
+    @staticmethod
+    def _check_new_table_path(table_path):
+        assert table_path is not DBAction.table_path
+        assert len(table_path) == 2
+        assert isinstance(table_path, tuple)
+        assert isinstance(table_path[0], str) and isinstance(table_path[1], str)
+
     @abstractmethod
     def __init__(self, config=None):
         super().__init__(config)
@@ -136,10 +148,7 @@ class DBAction(Action):
 
         # you must define table_path as a class variable in the action.
         if self.__class__.db_modification:
-            assert self.table_path is not DBAction.table_path
-            assert isinstance(self.table_path, tuple)
-            assert len(self.table_path) == 2 and isinstance(self.table_path[0], str) and isinstance(
-                self.table_path[1], str)
+            DBAction._check_new_table_path(self.table_path)
         else:
             assert self.table_path is DBAction.table_path, "you don't modify table_path for non-modifying action"
 
@@ -180,16 +189,16 @@ class DBAction(Action):
     #     result = collection_instance.find_one({"_id": _id})
     #     self.__db_instance.disconnect()
     #     return result
+    def _insert_results_inner(self, result, collection_instance):
+        assert result['_id'] in self.result_ids
+        assert collection_instance.count({"_id": result['_id']}) == 0
+        assert collection_instance.insert_one(result).acknowledged
 
     def insert_results(self, results):
-        assert isinstance(results, list)
         with self.db_context as db_instance:
             collection_instance = db_instance.client_instance[self.table_path[0]][self.table_path[1]]
             for result in results:
-                assert result['_id'] in self.result_ids
-                assert isinstance(result['_id'], ObjectId)  # must be true by design.
-                assert collection_instance.count({"_id": result['_id']}) == 0
-                assert collection_instance.insert_one(result).acknowledged
+                self._insert_results_inner(result, collection_instance)
 
     def push_files(self, _id: ObjectId, filelist: list, site: dict = None, relative: bool = True,
                    subdirs: list = None, dryrun: bool = False):
@@ -231,7 +240,7 @@ class DBAction(Action):
 
         :return:
         """
-        return True
+        return False
 
     @abstractmethod
     def remove_files_for_one_record(self, record):
@@ -301,7 +310,6 @@ class DBAction(Action):
 
     def revoke(self):
         """ delete result ids from the database, in case you want to start over.
-        TODO: rewrite using remove_one_result
         :return:
         """
         assert isinstance(self.result_ids, list)
@@ -332,22 +340,25 @@ class DBAction(Action):
         if self.force_finished:
             return True
 
-        if self.result_ids is None:
-            return False
-
-        assert isinstance(self.result_ids, list)
-
-        if not self.result_ids:  # empty list, always false, use force_finished to escape.
+        # this is the case before prepare, or empty prepare list.
+        if not self.result_ids:  # None or empty list. For empty list case, use `result_ids` to escape
             return False
 
         with self.db_context as db_instance:
             collection_instance = db_instance.client_instance[self.table_path[0]][self.table_path[1]]
             for _id in self.result_ids:
-                assert isinstance(_id, ObjectId)
                 if collection_instance.count({"_id": _id}) == 0:
                     return False
 
         return True
+
+    def _is_prepared_check_prepare_result_state(self):
+        if (self.prepare_result is not None) and (self.result_ids is not None):
+            return True
+        elif (self.prepare_result is None) and (self.result_ids is None):
+            return False
+        else:
+            raise RuntimeError('this is not possible!')
 
     def is_prepared(self) -> bool:
         """ check if the result is already there, and if there is, then put it in self._query_result and return True
@@ -356,10 +367,7 @@ class DBAction(Action):
         :return:
         """
         # either it's set or not set.
-        assert ((self.prepare_result is not None) and (self.result_ids is not None)) or (
-            (self.prepare_result is None) and (self.result_ids is None))
-
-        if (self.prepare_result is not None) and (self.result_ids is not None):
+        if self._is_prepared_check_prepare_result_state():
             return True
 
         if os.path.exists(self.__prepare_result_path):
@@ -376,21 +384,17 @@ class DBAction(Action):
 
         return False
 
-    def prepare(self):
+    def _prepare_get_query_template(self):
         if not os.path.exists(self.__query_template_path):
             with open(self.__query_template_path, 'wt', encoding='utf-8') as f:
                 f.write(self.generate_query_doc_template())
-            # TODO: add some non-interactive option to faciliate testing,
-            # or use some tool to do it (probably 2nd is better for now)
-            if not self.__class__.no_query:
-                input("{} Step 0a a query doc template is at {}, "
-                      "please finish it and press Enter".format(self.class_identifier, self.__query_template_path))
+            format_string = "{} Step 0a a query doc template is at {}, please finish it and press Enter"
         else:
-            if not self.__class__.no_query:
-                input("{} Step 0b the query doc is already at {},"
-                      "please confirm it and press Enter.".format(self.class_identifier, self.__query_template_path))
+            format_string = "{} Step 0b the query doc is already at {}, please confirm it and press Enter."
+        if not self.__class__.no_query:
+            input(format_string.format(self.class_identifier, self.__query_template_path))
 
-        assert os.path.exists(self.__query_template_path)
+    def _prepare_run_query(self):
         with self.db_context as db_instance:
             # run the query, passing it the database handle as 'client_instance'.
             locals_query = {'client_instance': db_instance.client_instance}
@@ -398,25 +402,35 @@ class DBAction(Action):
             with open(self.__query_template_path, 'rt', encoding='utf-8') as f:
                 exec(f.read(), globals_query, locals_query)
         assert 'result' in locals_query, "I need a variable called 'result' after executing the query document!"
+        return locals_query
 
+    def _prepare_post_process_query(self, locals_query):
         # then based on this result, I need to generate a set of ids that will be inserted.
         assert self.validate_query_result(locals_query['result']), "the query result doesn't look good!"
         post_prepare_result = self.prepare_post(locals_query['result'])
         assert 'result_ids' in post_prepare_result
-        assert post_prepare_result['result_ids'] is not None
-
-        # check that results are not found.
-        assert isinstance(post_prepare_result['result_ids'], list)
-        if post_prepare_result['result_ids']:
-            with self.db_context as db_instance:
-                collection_instance = db_instance.client_instance[self.table_path[0]][self.table_path[1]]
-                for _id in post_prepare_result['result_ids']:
-                    assert collection_instance.count({"_id": _id}) == 0, "the proposed result ids exist in the DB!"
-
-        self.__result_ids = post_prepare_result['result_ids']
-        self.__prepare_result = post_prepare_result
         assert '_class_name_' not in post_prepare_result, "don't include _class_name_ in your prepare result!"
         post_prepare_result['_class_name_'] = self.__class__.__qualname__
+        # check that results are not found.
+        assert isinstance(post_prepare_result['result_ids'], list)
+        return post_prepare_result
+
+    def _prepare_check_result_id(self, post_prepare_result):
+        with self.db_context as db_instance:
+            collection_instance = db_instance.client_instance[self.table_path[0]][self.table_path[1]]
+            for _id in post_prepare_result['result_ids']:
+                assert isinstance(_id, ObjectId)
+                assert collection_instance.count({"_id": _id}) == 0, "the proposed result ids exist in the DB!"
+
+    def prepare(self):
+        self._prepare_get_query_template()
+        locals_query = self._prepare_run_query()
+        post_prepare_result = self._prepare_post_process_query(locals_query)
+        # this is some line massage to improve code climate GPA
+        if post_prepare_result['result_ids']:
+            self._prepare_check_result_id(post_prepare_result)
+        self.__result_ids = post_prepare_result['result_ids']
+        self.__prepare_result = post_prepare_result
 
         with open(self.__prepare_result_path, 'wb') as f:
             pickle.dump(post_prepare_result, f)
