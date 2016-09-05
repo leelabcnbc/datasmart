@@ -1,9 +1,9 @@
 import jsl
 
+import datasmart.core.util.datetime
 from datasmart.core import schemautil
 from datasmart.core.action import ManualDBActionWithSchema
 from datasmart.core.dbschema import DBSchema
-from datasmart.core.util import util_old
 
 
 class FileUploadSchemaJSL(jsl.Document):
@@ -23,11 +23,11 @@ class FileUploadSchema(DBSchema):
         super().__init__(config)
 
     def post_process_record(self, record=None):
-        record['timestamp'] = util_old.rfc3339_to_datetime(record['timestamp'])
+        record['timestamp'] = datasmart.core.util.datetime.rfc3339_to_datetime(record['timestamp'])
         return record
 
     def post_process_template(self, template: str):
-        template = template.replace("{{timestamp}}", util_old.current_timestamp())
+        template = template.replace("{{timestamp}}", datasmart.core.util.datetime.current_timestamp())
         return template
 
 

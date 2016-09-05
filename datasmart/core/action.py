@@ -6,7 +6,6 @@ from abc import abstractmethod
 from bson import ObjectId
 
 import datasmart.core.util.path
-from datasmart.core.util import util_old
 from .base import Base
 from .db import DB
 from .dbschema import DBSchema
