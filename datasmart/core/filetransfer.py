@@ -2,7 +2,7 @@
 The module for file transfer in DataSmart
 
 """
-import collections
+
 import os
 import shlex
 import subprocess
@@ -11,7 +11,8 @@ import tempfile
 import jsl
 
 import datasmart.core.util.path
-from datasmart.core.util.path import normalize_site, normalize_site_mapping
+from datasmart.core.util.path import (normalize_site, normalize_site_mapping,
+                                      get_rsync_filelist, get_site_mapping, reformat_subdirs)
 from . import global_config
 from . import schemautil
 from .base import Base
@@ -83,7 +84,8 @@ class FileTransfer(Base):
         # normalize local save
         # this works even when config['local_data_dir'] is absolute. see the official doc on
         # os.path.join to see why.
-        config['local_data_dir'] = datasmart.core.util.path.joinpath_norm(global_config['project_root'], config['local_data_dir'])
+        config['local_data_dir'] = datasmart.core.util.path.joinpath_norm(global_config['project_root'],
+                                                                          config['local_data_dir'])
         # create local dir
         if not os.path.exists(config['local_data_dir']):
             os.makedirs(config['local_data_dir'], exist_ok=True)
@@ -109,33 +111,13 @@ class FileTransfer(Base):
                                    config), 'the config for filetransfer is invalid'
         return config
 
-    def _reformat_subdirs(self, subdirs: list) -> str:
-        """ check that subdirs is well-behaved, which means being relative and not higher than project root.
-
-        :param subdirs: a list of path components under ``_config['local_data_dir']``.
-        :return:
-        """
-        savepath_subdirs = datasmart.core.util.path.joinpath_norm(*subdirs)
-        assert not os.path.isabs(savepath_subdirs)
-        # make sure savepath_subdirs is inside project root.
-        # by checking that the common prefix of the local data dir and the subdir is local data dir.
-        assert os.path.commonprefix([
-            datasmart.core.util.path.joinpath_norm(self.config['local_data_dir'], savepath_subdirs), self.config['local_data_dir']
-        ]) == self.config['local_data_dir']
-        return savepath_subdirs
-
     def remove_dir(self, site: dict) -> None:
         """ remove an automatically generated directory by push.
 
         :param site: a site with 'append_prefix'. I won't do checking on this one, since it should be normalized.
         :return: None if everything is fine; otherwise throw Exception.
         """
-        # make sure that append_prefix is not trivial.
-
         append_prefix = site['append_prefix']
-        assert datasmart.core.util.path.joinpath_norm(append_prefix) != datasmart.core.util.path.joinpath_norm('')
-        stdout_arg = subprocess.PIPE if self.config['quiet'] else None
-
         # remove is conceptually a push. so use mapping for push.
         site_mapped = self._site_mapping_push(site)
 
@@ -152,7 +134,26 @@ class FileTransfer(Base):
                             '-p', str(site_info['ssh_port']), rm_command]
         if not self.config['quiet']:
             print(" ".join(full_command))
+            stdout_arg = None
+        else:
+            stdout_arg = subprocess.PIPE
         subprocess.run(full_command, check=True, stdout=stdout_arg)
+
+    @staticmethod
+    def _fetch_parse_copy(local_fetch_option):
+        if local_fetch_option == 'ask':
+            a = input("do you want to copy the files? press enter to copy, enter anything then enter to not copy")
+            if a:
+                copy_flag = False
+            else:
+                copy_flag = True
+        elif local_fetch_option == 'copy':
+            copy_flag = True
+        elif local_fetch_option == 'nocopy':
+            copy_flag = False
+        else:
+            raise RuntimeError("can't be the case!")
+        return copy_flag
 
     def fetch(self, filelist: list, src_site: dict = None, relative: bool = False, subdirs: list = None,
               local_fetch_option=None, dryrun: bool = False, strip_prefix='') -> dict:
@@ -187,10 +188,11 @@ class FileTransfer(Base):
 
         if strip_prefix:  # if it's not empty.
             strip_prefix = datasmart.core.util.path.joinpath_norm(strip_prefix)
-
+        assert not (os.path.isabs(strip_prefix))
         # normalize the file list first.
         filelist = datasmart.core.util.path.normalize_filelist_relative(filelist)
-        savepath = datasmart.core.util.path.joinpath_norm(self.config['local_data_dir'], self._reformat_subdirs(subdirs))
+        savepath = datasmart.core.util.path.joinpath_norm(self.config['local_data_dir'],
+                                                          reformat_subdirs(subdirs, self.config['local_data_dir']))
         # make sure it exists.
         os.makedirs(savepath, exist_ok=True)
         # get actual src site
@@ -202,18 +204,7 @@ class FileTransfer(Base):
         copy_flag = True
 
         if src_actual_site['local'] and (not src_site['local']):  # so there's mapping.
-            if local_fetch_option == 'ask':
-                a = input("do you want to copy the files? press enter to copy, enter anything then enter to not copy")
-                if a:
-                    copy_flag = False
-                else:
-                    copy_flag = True
-            elif local_fetch_option == 'copy':
-                copy_flag = True
-            elif local_fetch_option == 'nocopy':
-                copy_flag = False
-            else:
-                raise RuntimeError("can't be the case!")
+            copy_flag = FileTransfer._fetch_parse_copy(local_fetch_option)
 
         if copy_flag:
             dest_site = normalize_site({"path": savepath, "local": True})
@@ -263,12 +254,14 @@ class FileTransfer(Base):
             assert dest_append_prefix[:3] != '..' + os.path.sep
         # normalize the filelist first.
         filelist = datasmart.core.util.path.normalize_filelist_relative(filelist)
-        savepath = datasmart.core.util.path.joinpath_norm(self.config['local_data_dir'], self._reformat_subdirs(subdirs))
+        savepath = datasmart.core.util.path.joinpath_norm(self.config['local_data_dir'],
+                                                          reformat_subdirs(subdirs, self.config['local_data_dir']))
         # check that subdir exists.
         assert os.path.exists(savepath), "{} doesn't exist!".format(savepath)
 
         for file in filelist:
-            assert os.path.exists(datasmart.core.util.path.joinpath_norm(savepath, file)), "the file {} must exist!".format(
+            assert os.path.exists(
+                datasmart.core.util.path.joinpath_norm(savepath, file)), "the file {} must exist!".format(
                 datasmart.core.util.path.joinpath_norm(savepath, file)
             )
 
@@ -302,14 +295,11 @@ class FileTransfer(Base):
         if 'strip_prefix' not in options:
             options['strip_prefix'] = ''
 
-        assert not os.path.isabs(options['dest_append_prefix'])
-        assert not os.path.isabs(options['strip_prefix'])
-
         if options['strip_prefix']:
             assert options['relative'], "with non trivial strip prefix, must be in relative mode!"
 
         # one of them must be local.
-        assert src['local'] or dest['local']
+        assert src['local'] or dest['local'], 'one of source and dest must be local'
 
         # construct the rsync command.
         # since I use -from-file option in rsync,  by default, it's relative without ``rsync_relative_arg``.
@@ -331,7 +321,7 @@ class FileTransfer(Base):
 
         # create a filelist for rsync's file-from option.
         # to and from can be different due to stripping prefix, and base name stuff.
-        rsync_filelist_from, rsync_filelist_to = FileTransfer._get_rsync_filelist(filelist, options)
+        rsync_filelist_from, rsync_filelist_to = get_rsync_filelist(filelist, options)
 
         # run the actual rsync if not dryrun.
         if options['dryrun']:
@@ -365,7 +355,8 @@ class FileTransfer(Base):
             os.remove(rsync_filelist_path)
 
         # return the canonical filelist on the dest. This should be relative for local dest, and absolute for remote.
-        ret_filelist = datasmart.core.util.path.normalize_filelist_relative(rsync_filelist_to, prefix=options['dest_append_prefix'])
+        ret_filelist = datasmart.core.util.path.normalize_filelist_relative(rsync_filelist_to,
+                                                                            prefix=options['dest_append_prefix'])
 
         # strip prefix.
 
@@ -377,12 +368,7 @@ class FileTransfer(Base):
         :param site: the site to be mapped
         :return: a copy of the actual site
         """
-        for map_pair_ in self.config['site_mapping_push']:
-            if site == map_pair_['from']:
-                return map_pair_['to'].copy()
-
-        # return site itself if there's no mapping for it.
-        return site.copy()
+        return get_site_mapping(self.config['site_mapping_push'], site)
 
     def _site_mapping_fetch(self, site: dict) -> dict:
         """ map site to the actual site used using ``_config['site_mapping_fetch']``
@@ -390,12 +376,7 @@ class FileTransfer(Base):
         :param site: the site to be mapped
         :return: a **copy** of the actual site
         """
-        for map_pair_ in self.config['site_mapping_fetch']:
-            if site == map_pair_['from']:
-                return map_pair_['to'].copy()
-
-        # return site itself if there's no mapping for it.
-        return site.copy()
+        return get_site_mapping(self.config['site_mapping_fetch'], site)
 
     def _get_rsync_site_spec(self, site: dict, append_prefix: str = None) -> tuple:
         """get the rysnc arguments for a site.
@@ -424,58 +405,3 @@ class FileTransfer(Base):
             rsync_ssh_arg_site = ['-e', "ssh -p {}".format(site_info['ssh_port'])]
 
         return rsync_site_spec, rsync_ssh_arg_site
-
-    @staticmethod
-    def _get_rsync_filelist(filelist: list, options: dict) -> tuple:
-        """ get the filelist for rsync's files-from option.
-
-        :param filelist: original file list.
-        :param options: options passed into transfer.
-        :return: a filelist to be written into a temp file for rsync to use as first element, and baselist as second.
-        """
-
-        if 'strip_prefix' in options:
-            strip_prefix = options['strip_prefix']
-        else:
-            strip_prefix = ''
-
-        # check that filenames don't contain weird characters, and get basename list.
-        rsync_filelist_from = datasmart.core.util.path.normalize_filelist_relative(filelist)
-
-        # add strip_prefix.
-        for x in rsync_filelist_from:
-            assert x.startswith(strip_prefix)
-
-        if strip_prefix:  # this needs to be added when strip_prefix is not empty.
-            # +1 to ignore '/' in the beginning.
-            rsync_filelist_from_second = [x[(len(strip_prefix) + 1):] for x in rsync_filelist_from]
-            rsync_filelist_from = [strip_prefix + '/./' + x for x in rsync_filelist_from_second]
-        else:
-            rsync_filelist_from_second = rsync_filelist_from
-
-        # this second part is canonical
-        assert datasmart.core.util.path.normalize_filelist_relative(rsync_filelist_from_second) == rsync_filelist_from_second
-        # insertion of '/./' doesn't destroy anything.
-        assert datasmart.core.util.path.normalize_filelist_relative(rsync_filelist_from) == datasmart.core.util.path.normalize_filelist_relative(filelist)
-
-        if not options['relative']:
-            rsync_filelist_to = [os.path.basename(p) for p in rsync_filelist_from]
-        else:
-            rsync_filelist_to = rsync_filelist_from_second
-
-        # check for duplicate
-        # for relative, no duplicate full path should exist
-        # for non-relative, no duplicate basename should exist.
-        FileTransfer._check_duplicate(rsync_filelist_to)
-        return rsync_filelist_from, rsync_filelist_to
-
-    @staticmethod
-    def _check_duplicate(filelist: list) -> None:
-        """ check that files are not duplicated.
-
-        :param filelist: a list of strings
-        :return: return None. raise error if there's any duplicate stuff.
-        """
-        duplicate_items = [item for item, count in collections.Counter(filelist).items() if count > 1]
-        if duplicate_items:
-            raise RuntimeError("duplicate files exist for non-relative mode: " + str(duplicate_items))
