@@ -11,7 +11,6 @@ from copy import deepcopy
 import datasmart.core.filetransfer
 import datasmart.core.util.git
 import datasmart.core.util.path
-import datasmart.core.util.util_old
 from datasmart.core import schemautil
 from datasmart.test_util import file_util
 

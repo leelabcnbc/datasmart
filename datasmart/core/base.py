@@ -6,7 +6,6 @@ core of DataSMART, defines basic config pass mechanism.
 from abc import ABC, abstractmethod
 
 import datasmart.core.util.config
-from datasmart.core.util import util_old
 from . import global_config
 
 

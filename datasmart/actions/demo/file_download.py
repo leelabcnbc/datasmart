@@ -2,7 +2,6 @@ import datasmart.core.util.config
 import datasmart.core.util.path
 from datasmart.core import schemautil
 from datasmart.core.action import DBAction
-from datasmart.core.util import util_old
 
 
 class FileDownloadAction(DBAction):
@@ -17,7 +16,7 @@ class FileDownloadAction(DBAction):
 
     def validate_query_result(self, result) -> bool:
         # must be a good site + file list.
-        assert schemautil.validate(schemautil.filetransfer.FileTransferSiteAndFileListAny.get_schema(),result)
+        assert schemautil.validate(schemautil.filetransfer.FileTransferSiteAndFileListAny.get_schema(), result)
         return True
 
     def perform(self) -> None:
@@ -31,7 +30,7 @@ class FileDownloadAction(DBAction):
         if response:
             print("operation stopped!")
             return
-        self.fetch_files(filelist, site, relative=True, subdirs=self.config['savedir'],local_fetch_option='copy')
+        self.fetch_files(filelist, site, relative=True, subdirs=self.config['savedir'], local_fetch_option='copy')
         print("succeed!")
         self.force_finished = True
 

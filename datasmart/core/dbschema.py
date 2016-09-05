@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 from jsonschema import Draft4Validator
 
 import datasmart.core.util.config
-from datasmart.core.util import util_old
 from . import schemautil
 
 
