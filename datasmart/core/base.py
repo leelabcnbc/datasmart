@@ -5,6 +5,7 @@ core of DataSMART, defines basic config pass mechanism.
 """
 from abc import ABC, abstractmethod
 
+import datasmart.core.util.config
 from datasmart.core.util import util_old
 from . import global_config
 
@@ -31,7 +32,7 @@ class Base(ABC):
         assert self.config_path is not Base.config_path
         if config is None:
             # calling the __class__ to hint people to override with @staticmethod
-            self.__config = self.__class__.normalize_config(util_old.load_config(self.config_path))
+            self.__config = self.__class__.normalize_config(datasmart.core.util.config.load_config(self.config_path))
         else:
             #  we allow you to do anything.
             self.__config = config

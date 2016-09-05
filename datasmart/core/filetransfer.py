@@ -10,8 +10,8 @@ import tempfile
 
 import jsl
 
-from datasmart.core.util import util_old
-from datasmart.core.util.util_old import normalize_site_mapping, normalize_site
+import datasmart.core.util.path
+from datasmart.core.util.path import normalize_site, normalize_site_mapping
 from . import global_config
 from . import schemautil
 from .base import Base
@@ -83,7 +83,7 @@ class FileTransfer(Base):
         # normalize local save
         # this works even when config['local_data_dir'] is absolute. see the official doc on
         # os.path.join to see why.
-        config['local_data_dir'] = util_old.joinpath_norm(global_config['project_root'], config['local_data_dir'])
+        config['local_data_dir'] = datasmart.core.util.path.joinpath_norm(global_config['project_root'], config['local_data_dir'])
         # create local dir
         if not os.path.exists(config['local_data_dir']):
             os.makedirs(config['local_data_dir'], exist_ok=True)
@@ -115,12 +115,12 @@ class FileTransfer(Base):
         :param subdirs: a list of path components under ``_config['local_data_dir']``.
         :return:
         """
-        savepath_subdirs = util_old.joinpath_norm(*subdirs)
+        savepath_subdirs = datasmart.core.util.path.joinpath_norm(*subdirs)
         assert not os.path.isabs(savepath_subdirs)
         # make sure savepath_subdirs is inside project root.
         # by checking that the common prefix of the local data dir and the subdir is local data dir.
         assert os.path.commonprefix([
-            util_old.joinpath_norm(self.config['local_data_dir'], savepath_subdirs), self.config['local_data_dir']
+            datasmart.core.util.path.joinpath_norm(self.config['local_data_dir'], savepath_subdirs), self.config['local_data_dir']
         ]) == self.config['local_data_dir']
         return savepath_subdirs
 
@@ -133,17 +133,17 @@ class FileTransfer(Base):
         # make sure that append_prefix is not trivial.
 
         append_prefix = site['append_prefix']
-        assert util_old.joinpath_norm(append_prefix) != util_old.joinpath_norm('')
+        assert datasmart.core.util.path.joinpath_norm(append_prefix) != datasmart.core.util.path.joinpath_norm('')
         stdout_arg = subprocess.PIPE if self.config['quiet'] else None
 
         # remove is conceptually a push. so use mapping for push.
         site_mapped = self._site_mapping_push(site)
 
         if site_mapped['local']:
-            rm_site_spec = util_old.joinpath_norm(site_mapped['path'], append_prefix)
+            rm_site_spec = datasmart.core.util.path.joinpath_norm(site_mapped['path'], append_prefix)
             full_command = ['rm', '-rf', rm_site_spec]
         else:
-            rm_site_spec_remote = util_old.joinpath_norm(site_mapped['prefix'], append_prefix)
+            rm_site_spec_remote = datasmart.core.util.path.joinpath_norm(site_mapped['prefix'], append_prefix)
 
             site_info = self.config['remote_site_config'][site_mapped['path']]
 
@@ -186,11 +186,11 @@ class FileTransfer(Base):
         assert local_fetch_option in _LOCAL_FETCH_OPTIONS
 
         if strip_prefix:  # if it's not empty.
-            strip_prefix = util_old.joinpath_norm(strip_prefix)
+            strip_prefix = datasmart.core.util.path.joinpath_norm(strip_prefix)
 
         # normalize the file list first.
-        filelist = util_old.normalize_filelist_relative(filelist)
-        savepath = util_old.joinpath_norm(self.config['local_data_dir'], self._reformat_subdirs(subdirs))
+        filelist = datasmart.core.util.path.normalize_filelist_relative(filelist)
+        savepath = datasmart.core.util.path.joinpath_norm(self.config['local_data_dir'], self._reformat_subdirs(subdirs))
         # make sure it exists.
         os.makedirs(savepath, exist_ok=True)
         # get actual src site
@@ -254,7 +254,7 @@ class FileTransfer(Base):
         if dest_append_prefix is None:
             dest_append_prefix = ['']
 
-        dest_append_prefix = util_old.joinpath_norm(*dest_append_prefix)
+        dest_append_prefix = datasmart.core.util.path.joinpath_norm(*dest_append_prefix)
         # append prefix must be relative path.
         assert not (os.path.isabs(dest_append_prefix))
         if len(dest_append_prefix) == 2:
@@ -262,14 +262,14 @@ class FileTransfer(Base):
         elif len(dest_append_prefix) > 2:
             assert dest_append_prefix[:3] != '..' + os.path.sep
         # normalize the filelist first.
-        filelist = util_old.normalize_filelist_relative(filelist)
-        savepath = util_old.joinpath_norm(self.config['local_data_dir'], self._reformat_subdirs(subdirs))
+        filelist = datasmart.core.util.path.normalize_filelist_relative(filelist)
+        savepath = datasmart.core.util.path.joinpath_norm(self.config['local_data_dir'], self._reformat_subdirs(subdirs))
         # check that subdir exists.
         assert os.path.exists(savepath), "{} doesn't exist!".format(savepath)
 
         for file in filelist:
-            assert os.path.exists(util_old.joinpath_norm(savepath, file)), "the file {} must exist!".format(
-                util_old.joinpath_norm(savepath, file)
+            assert os.path.exists(datasmart.core.util.path.joinpath_norm(savepath, file)), "the file {} must exist!".format(
+                datasmart.core.util.path.joinpath_norm(savepath, file)
             )
 
         # get actual site
@@ -365,7 +365,7 @@ class FileTransfer(Base):
             os.remove(rsync_filelist_path)
 
         # return the canonical filelist on the dest. This should be relative for local dest, and absolute for remote.
-        ret_filelist = util_old.normalize_filelist_relative(rsync_filelist_to, prefix=options['dest_append_prefix'])
+        ret_filelist = datasmart.core.util.path.normalize_filelist_relative(rsync_filelist_to, prefix=options['dest_append_prefix'])
 
         # strip prefix.
 
@@ -409,7 +409,7 @@ class FileTransfer(Base):
 
         if site['local']:
             # for local site, we don't need additional argument for ssh, only append prefix if needed.
-            rsync_site_spec = util_old.joinpath_norm(site['path'], append_prefix) + os.path.sep
+            rsync_site_spec = datasmart.core.util.path.joinpath_norm(site['path'], append_prefix) + os.path.sep
             # sep is IMPORTANT to force it being a directory. This is useful when filelist only has ONE file.
             rsync_ssh_arg_site = None
         else:
@@ -418,7 +418,7 @@ class FileTransfer(Base):
             site_info = self.config['remote_site_config'][site['path']]
             prefix = site['prefix']
             rsync_site_spec = site_info['ssh_username'] + '@' + site['path'] + ':' + shlex.quote(
-                util_old.joinpath_norm(prefix, append_prefix) + os.path.sep)
+                datasmart.core.util.path.joinpath_norm(prefix, append_prefix) + os.path.sep)
             # must quote since this string after ``:`` is parsed by remote shell. quote it to remove all wildcard
             # expansion... should test wild card to see if it works...
             rsync_ssh_arg_site = ['-e', "ssh -p {}".format(site_info['ssh_port'])]
@@ -440,7 +440,7 @@ class FileTransfer(Base):
             strip_prefix = ''
 
         # check that filenames don't contain weird characters, and get basename list.
-        rsync_filelist_from = util_old.normalize_filelist_relative(filelist)
+        rsync_filelist_from = datasmart.core.util.path.normalize_filelist_relative(filelist)
 
         # add strip_prefix.
         for x in rsync_filelist_from:
@@ -454,9 +454,9 @@ class FileTransfer(Base):
             rsync_filelist_from_second = rsync_filelist_from
 
         # this second part is canonical
-        assert util_old.normalize_filelist_relative(rsync_filelist_from_second) == rsync_filelist_from_second
+        assert datasmart.core.util.path.normalize_filelist_relative(rsync_filelist_from_second) == rsync_filelist_from_second
         # insertion of '/./' doesn't destroy anything.
-        assert util_old.normalize_filelist_relative(rsync_filelist_from) == util_old.normalize_filelist_relative(filelist)
+        assert datasmart.core.util.path.normalize_filelist_relative(rsync_filelist_from) == datasmart.core.util.path.normalize_filelist_relative(filelist)
 
         if not options['relative']:
             rsync_filelist_to = [os.path.basename(p) for p in rsync_filelist_from]

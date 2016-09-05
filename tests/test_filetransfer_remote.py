@@ -7,6 +7,8 @@ import unittest
 from copy import deepcopy
 
 import datasmart.core.filetransfer
+import datasmart.core.util.git
+import datasmart.core.util.path
 import datasmart.core.util.util_old
 from datasmart.core import schemautil
 from datasmart.test_util import file_util
@@ -19,12 +21,12 @@ class TestFileTransferRemote(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         # check git is clean
-        datasmart.core.util.util_old.check_git_repo_clean()
+        datasmart.core.util.git.check_git_repo_clean()
 
     @classmethod
     def setUpClass(cls):
         # check git is clean
-        datasmart.core.util.util_old.check_git_repo_clean()
+        datasmart.core.util.git.check_git_repo_clean()
 
     def setup_config(self, nas_ip_address, local_data_dir, remote_data_dir, username):
         config_this = {
@@ -42,12 +44,12 @@ class TestFileTransferRemote(unittest.TestCase):
                 "from":
                     {
                         "path": nas_ip_address,
-                        "prefix": datasmart.core.util.util_old.joinpath_norm(remote_dir_root, remote_data_dir),
+                        "prefix": datasmart.core.util.path.joinpath_norm(remote_dir_root, remote_data_dir),
                         "local": False
                     },
                 "to":
                     {
-                        "path": datasmart.core.util.util_old.joinpath_norm(local_map_dir_root, remote_data_dir),
+                        "path": datasmart.core.util.path.joinpath_norm(local_map_dir_root, remote_data_dir),
                         "local": True
                     }
             }
@@ -57,12 +59,12 @@ class TestFileTransferRemote(unittest.TestCase):
                 "from":
                     {
                         "path": nas_ip_address,
-                        "prefix": datasmart.core.util.util_old.joinpath_norm(remote_dir_root, remote_data_dir),
+                        "prefix": datasmart.core.util.path.joinpath_norm(remote_dir_root, remote_data_dir),
                         "local": False
                     },
                 "to":
                     {
-                        "path": datasmart.core.util.util_old.joinpath_norm(local_map_dir_root, remote_data_dir),
+                        "path": datasmart.core.util.path.joinpath_norm(local_map_dir_root, remote_data_dir),
                         "local": True
                     }
             }
@@ -74,8 +76,8 @@ class TestFileTransferRemote(unittest.TestCase):
             }
         }
         config_this['default_site'] = {"path": nas_ip_address,
-                                       "prefix": datasmart.core.util.util_old.joinpath_norm(remote_dir_root,
-                                                                                            remote_data_dir),
+                                       "prefix": datasmart.core.util.path.joinpath_norm(remote_dir_root,
+                                                                                        remote_data_dir),
                                        "local": False}
         config_this['quiet'] = True
         config_this['local_fetch_option'] = 'copy'
@@ -214,7 +216,7 @@ class TestFileTransferRemote(unittest.TestCase):
 
             if strip_append_prefix:
                 assert dest_append_prefix != ['']
-                strip_prefix = datasmart.core.util.util_old.joinpath_norm(*dest_append_prefix)
+                strip_prefix = datasmart.core.util.path.joinpath_norm(*dest_append_prefix)
             else:
                 strip_prefix = ''
 
@@ -279,7 +281,7 @@ class TestFileTransferRemote(unittest.TestCase):
 
         if dest_append_prefix is None:
             dest_append_prefix = ['']
-        dest_append_prefix = datasmart.core.util.util_old.joinpath_norm(*dest_append_prefix)
+        dest_append_prefix = datasmart.core.util.path.joinpath_norm(*dest_append_prefix)
 
         # check that the remote server is kept the same.
         ret_pushdest2 = ret_push['dest'].copy()
@@ -289,11 +291,11 @@ class TestFileTransferRemote(unittest.TestCase):
 
         from_site = {
             "path": nas_ip_address,
-            "prefix": datasmart.core.util.util_old.joinpath_norm(remote_dir_root, remote_data_dir),
+            "prefix": datasmart.core.util.path.joinpath_norm(remote_dir_root, remote_data_dir),
             "local": False
         }
         to_site = {
-            "path": datasmart.core.util.util_old.joinpath_norm(local_map_dir_root, remote_data_dir),
+            "path": datasmart.core.util.path.joinpath_norm(local_map_dir_root, remote_data_dir),
             "local": True
         }
 
@@ -303,8 +305,8 @@ class TestFileTransferRemote(unittest.TestCase):
         to_site_auto['append_prefix'] = dest_append_prefix
 
         # check site
-        assert ret_push['src'] == {'path': datasmart.core.util.util_old.joinpath_norm(os.path.abspath(local_data_dir),
-                                                                                      *subdirs_push), 'local': True}
+        assert ret_push['src'] == {'path': datasmart.core.util.path.joinpath_norm(os.path.abspath(local_data_dir),
+                                                                                  *subdirs_push), 'local': True}
         assert ret_push['src'] == ret_push['src_actual']
         # assert ret_push['src_acutal'] == ret_push['src']
         self.assertEqual(ret_push['dest'],from_site_auto)
@@ -324,8 +326,8 @@ class TestFileTransferRemote(unittest.TestCase):
             # there's mapping and I don't want copy.
             assert ret_fetch['dest'] == ret_fetch['src_actual']
         else:
-            assert ret_fetch['dest'] == {'path': datasmart.core.util.util_old.joinpath_norm(os.path.abspath(local_cache_dir),
-                                                                                            *subdirs_fetch), 'local': True}
+            assert ret_fetch['dest'] == {'path': datasmart.core.util.path.joinpath_norm(os.path.abspath(local_cache_dir),
+                                                                                        *subdirs_fetch), 'local': True}
         assert ret_fetch['dest_actual'] == ret_fetch['dest']
 
 
@@ -363,8 +365,8 @@ class TestFileTransferRemote(unittest.TestCase):
                 filename5 = os.path.join(remote_dir_root, remote_data_dir, filename4)
             # 1 and 3
 
-            assert filename3 == datasmart.core.util.util_old.joinpath_norm(dest_append_prefix,
-                                                                           file if relative_push else filebase)
+            assert filename3 == datasmart.core.util.path.joinpath_norm(dest_append_prefix,
+                                                                       file if relative_push else filebase)
             # 3 and 4
             if not (local_fetch_option == 'nocopy' and map_fetch):
                 if not strip_append_prefix:
