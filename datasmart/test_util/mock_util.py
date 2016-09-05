@@ -8,9 +8,9 @@ from . import file_util
 
 
 class MockNames:
-    git_repo_url = "datasmart.core.util.get_git_repo_url"
-    git_repo_hash = "datasmart.core.util.get_git_repo_hash"
-    git_check_clean = "datasmart.core.util.check_git_repo_clean"
+    git_repo_url = "datasmart.core.util.git.get_git_repo_url"
+    git_repo_hash = "datasmart.core.util.git.get_git_repo_hash"
+    git_check_clean = "datasmart.core.util.git.check_git_repo_clean"
 
 
 def create_mocked_action(action_class: type, action_config=None, mock_options=None):
