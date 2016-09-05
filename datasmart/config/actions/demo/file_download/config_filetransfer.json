@@ -1,0 +1,20 @@
+# remove everything after #, including this line
+{
+  "local_data_dir": "_downloaded_data",  # by default, download to `_downloaded_data` of project directory.
+  "site_mapping_push": [
+  ],
+  "site_mapping_fetch": [
+  ],
+  "remote_site_config": {
+    "www.yourserver.com": {   # here, you should fill out some login information about your file server.
+      "ssh_username": "yourname",
+      "ssh_port": 22
+    }
+  },
+  "default_site": {      # this is actually useless, as this action always specify a site explicitly.
+    "path": "default_local_site",
+    "local": true
+  },
+  "quiet": false,
+  "local_fetch_option": "copy",  # by default copy files on mapped drive (I think this is just a safeguard)
+}

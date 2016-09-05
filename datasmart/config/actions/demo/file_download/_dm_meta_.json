@@ -1,0 +1,7 @@
+{
+  "action_name": "FileDownloadAction",
+  "revocable": false,
+  "override_core_config": {
+    "filetransfer": "config_filetransfer.json"
+  }
+}
