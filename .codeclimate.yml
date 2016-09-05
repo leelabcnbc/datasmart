@@ -1,3 +1,6 @@
+languages:
+  Python: true
 exclude_paths:
 - "tests/"
 - "datasmart/test_util/"
+- "docs/"
