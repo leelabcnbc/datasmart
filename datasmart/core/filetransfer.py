@@ -163,6 +163,8 @@ class FileTransfer(Base):
 
         if strip_prefix:  # if it's not empty.
             strip_prefix = joinpath_norm(strip_prefix)
+            # make sure it's not `.` or `..`.
+            assert 'aaa' + os.path.sep + strip_prefix == joinpath_norm('aaa', strip_prefix)
         assert not (os.path.isabs(strip_prefix))
         return src_site, subdirs, local_fetch_option, strip_prefix
 
@@ -310,37 +312,22 @@ class FileTransfer(Base):
         # since I use -from-file option in rsync,  by default, it's relative without ``rsync_relative_arg``.
         rsync_relative_arg = "--relative" if options['relative'] else "--no-relative"
         # this will be filled in by rsync_ssh_arg_src or rsync_ssh_arg_dest if any of them is remote.
-        rsync_ssh_arg = []
 
-        # get the path of source and destination sites,  and get a ssh argument if necessary.
-        rsync_src_spec, rsync_ssh_arg_src = self._get_rsync_site_spec(src)
-        # provide an additional prefix for destination site (remote or local)
-        rsync_dest_spec, rsync_ssh_arg_dest = self._get_rsync_site_spec(dest,
-                                                                        append_prefix=options['dest_append_prefix'])
-        # if there's any non-None ssh arg returned, there must be exactly one.
-        assert (rsync_ssh_arg_src is None) or (rsync_ssh_arg_dest is None)
-        if not (rsync_ssh_arg_src is None):
-            rsync_ssh_arg = rsync_ssh_arg_src
-        if not (rsync_ssh_arg_dest is None):
-            rsync_ssh_arg = rsync_ssh_arg_dest
 
         # create a filelist for rsync's file-from option.
         # to and from can be different due to stripping prefix, and base name stuff.
         rsync_filelist_from, rsync_filelist_to = get_rsync_filelist(filelist, options)
-
+        rsync_src_spec, rsync_dest_spec, rsync_ssh_arg = self._get_rysnc_ssh_spec(src, dest, options)
         # run the actual rsync if not dryrun.
-        if options['dryrun']:
-            rsync_dryrun_arg = ['--dry-run']
-        else:
-            rsync_dryrun_arg = []
+        rsync_dryrun_arg = self._get_rysnc_dryrun_spec(options)
 
         # create temp file for rsync_filelist_value.
-        rsync_filelist_handle = tempfile.NamedTemporaryFile(mode='wt', delete=False)
-        rsync_filelist_path = rsync_filelist_handle.name
-        # add '/' in front in case we have file names starting with '#' or ';'
-        # see http://samba.2283325.n4.nabble.com/comments-with-in-files-from-td2510187.html
-        rsync_filelist_handle.writelines([os.sep + p + '\n' for p in rsync_filelist_from])
-        rsync_filelist_handle.close()
+        with tempfile.NamedTemporaryFile(mode='wt', delete=False) as rsync_filelist_handle:
+            rsync_filelist_path = rsync_filelist_handle.name
+            # add '/' in front in case we have file names starting with '#' or ';'
+            # see http://samba.2283325.n4.nabble.com/comments-with-in-files-from-td2510187.html
+            rsync_filelist_handle.writelines([os.sep + p + '\n' for p in rsync_filelist_from])
+
         rsync_filelist_arg = "--files-from={}".format(rsync_filelist_path)
 
         # get the full rsync command.
@@ -352,7 +339,9 @@ class FileTransfer(Base):
         # like spaces are not quoted properly.
         if not self.config['quiet']:
             print(" ".join(rsync_command))
-        stdout_arg = subprocess.PIPE if self.config['quiet'] else None
+            stdout_arg = None
+        else:
+            stdout_arg = subprocess.PIPE
         try:
             subprocess.run(rsync_command, check=True, stdout=stdout_arg)  # if not return 0, if fails.
         finally:
@@ -410,3 +399,26 @@ class FileTransfer(Base):
             rsync_ssh_arg_site = ['-e', "ssh -p {}".format(site_info['ssh_port'])]
 
         return rsync_site_spec, rsync_ssh_arg_site
+
+    def _get_rysnc_ssh_spec(self, src, dest, options):
+        rsync_ssh_arg = []
+
+        # get the path of source and destination sites,  and get a ssh argument if necessary.
+        rsync_src_spec, rsync_ssh_arg_src = self._get_rsync_site_spec(src)
+        # provide an additional prefix for destination site (remote or local)
+        rsync_dest_spec, rsync_ssh_arg_dest = self._get_rsync_site_spec(dest,
+                                                                        append_prefix=options['dest_append_prefix'])
+        # if there's any non-None ssh arg returned, there must be exactly one.
+        assert (rsync_ssh_arg_src is None) or (rsync_ssh_arg_dest is None)
+        if not (rsync_ssh_arg_src is None):
+            rsync_ssh_arg = rsync_ssh_arg_src
+        if not (rsync_ssh_arg_dest is None):
+            rsync_ssh_arg = rsync_ssh_arg_dest
+        return rsync_src_spec, rsync_dest_spec, rsync_ssh_arg
+
+    def _get_rysnc_dryrun_spec(self, options):
+        if options['dryrun']:
+            rsync_dryrun_arg = ['--dry-run']
+        else:
+            rsync_dryrun_arg = []
+        return rsync_dryrun_arg
