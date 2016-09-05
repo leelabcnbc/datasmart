@@ -163,7 +163,7 @@ class FileTransfer(Base):
 
         if strip_prefix:  # if it's not empty.
             strip_prefix = joinpath_norm(strip_prefix)
-            # make sure it's not `.` or `..`.
+            # make sure it's not `.` or `..`, or something starting with `..`
             assert 'aaa' + os.path.sep + strip_prefix == joinpath_norm('aaa', strip_prefix)
         assert not (os.path.isabs(strip_prefix))
         return src_site, subdirs, local_fetch_option, strip_prefix
