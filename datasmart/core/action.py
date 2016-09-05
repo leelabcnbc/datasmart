@@ -2,8 +2,11 @@ import json
 import os
 import pickle
 from abc import abstractmethod
+
 from bson import ObjectId
-from . import util
+
+import datasmart.core.util.path
+from datasmart.core.util import util_old
 from .base import Base
 from .db import DB
 from .dbschema import DBSchema
@@ -128,8 +131,8 @@ class DBAction(Action):
     def __init__(self, config=None):
         super().__init__(config)
         prepare_path = self.get_prepare_path()
-        self.__prepare_result_path = util.joinpath_norm(prepare_path, self.prepare_result_name)
-        self.__query_template_path = util.joinpath_norm(prepare_path, self.query_template_name)
+        self.__prepare_result_path = datasmart.core.util.path.joinpath_norm(prepare_path, self.prepare_result_name)
+        self.__query_template_path = datasmart.core.util.path.joinpath_norm(prepare_path, self.query_template_name)
         self.db_context = DBContextManager(DB())
 
         # you must define table_path as a class variable in the action.
@@ -274,7 +277,7 @@ class DBAction(Action):
         if len(site_list) == 0:
             return
         filetransfer = FileTransfer()
-        correct_append_prefix = util.joinpath_norm(*(self.table_path + (str(_id),)))
+        correct_append_prefix = datasmart.core.util.path.joinpath_norm(*(self.table_path + (str(_id),)))
         for site in site_list:
             assert site['append_prefix'] == correct_append_prefix
             filetransfer.remove_dir(site)
@@ -557,7 +560,7 @@ class ManualDBActionWithSchema(DBActionWithSchema):
         print("custom info from this action follows.\n\n\n\n")
         print(self.custom_info())
         print("\n\n\n\n")
-        savepath = util.joinpath_norm(self.global_config['project_root'], self.config['savepath'])
+        savepath = datasmart.core.util.path.joinpath_norm(self.global_config['project_root'], self.config['savepath'])
         template_text = self.dbschema_instance.get_template()
         record = save_wait_and_load(template_text, savepath,
                                     "{} Step 1 Enter to continue after editing and saving the template...".format(

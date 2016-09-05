@@ -1,4 +1,3 @@
-from datasmart.core import util
 from bson import ObjectId
 # this is a query template for downloading file. In the end, the `result` variable should be a dictionary
 # of fields `site` and `filelist`, following format of `FileTransferSiteAndFileListAny` in datasmart.core.schemautil
