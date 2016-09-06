@@ -1,4 +1,8 @@
 {
   "action_name": "SchoolGradeInputAction",
-  "revocable": true
+  "revocable": true,
+  "override_core_config": {
+    "db": "config_db.json",
+    "util": "config_util.json"
+  }
 }

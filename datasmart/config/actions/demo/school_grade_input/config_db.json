@@ -1,0 +1,8 @@
+{
+  "url": "127.0.0.1",
+  "port": 27017,
+  "authentication": false,
+  "user": "test",
+  "password": "test",
+  "auth_db": "admin"
+}

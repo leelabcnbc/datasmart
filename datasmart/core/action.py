@@ -93,7 +93,6 @@ class DBAction(Action):
     table_path = (None, None)
     db_modification = True  # whether this action would change the DB.
     no_query = False  # whether there's only trival query so that I can skip, or that your action does not need query
-
     # at all, and gets information through other channels.
 
     @property

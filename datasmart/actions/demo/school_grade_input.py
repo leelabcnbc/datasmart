@@ -37,7 +37,7 @@ class SchoolGradeInputSchema(DBSchema):
         return record
 
     def post_process_template(self, template: str) -> str:
-        template = template.replace("{{timestamp}}", datasmart.core.util.datetime.current_timestamp())
+        template = template.replace("{{timestamp}}", datasmart.core.util.datetime.now_rfc3339_local())
         return template
 
 
