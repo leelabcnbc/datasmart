@@ -4,7 +4,7 @@ from datasmart.actions.demo.file_upload import FileUploadAction
 
 class MyTestCase(unittest.TestCase):
     def test_something(self):
-        a = FileUploadAction({})
+        a = FileUploadAction()
         self.assertEqual(True, True)
 
 

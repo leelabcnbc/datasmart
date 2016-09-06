@@ -116,8 +116,10 @@ class FileTransfer(Base):
         :param site: a site with 'append_prefix'. I won't do checking on this one, since it should be normalized.
         :return: None if everything is fine; otherwise throw Exception.
         """
+        assert schemautil.validate(schemautil.filetransfer.FileTransferSiteAuto.get_schema(), site)
         append_prefix = site['append_prefix']
         # remove is conceptually a push. so use mapping for push.
+        site = normalize_site(site)
         site_mapped = self._site_mapping_push(site)
 
         if site_mapped['local']:
@@ -362,7 +364,7 @@ class FileTransfer(Base):
         :param site: the site to be mapped
         :return: a copy of the actual site
         """
-        site = normalize_site(site)
+        assert schemautil.validate(schemautil.filetransfer.FileTransferSiteStandard.get_schema(), site)
         return get_site_mapping(self.config['site_mapping_push'], site)
 
     def _site_mapping_fetch(self, site: dict) -> dict:
@@ -371,7 +373,7 @@ class FileTransfer(Base):
         :param site: the site to be mapped
         :return: a **copy** of the actual site
         """
-        site = normalize_site(site)
+        assert schemautil.validate(schemautil.filetransfer.FileTransferSiteStandard.get_schema(), site)
         return get_site_mapping(self.config['site_mapping_fetch'], site)
 
     def _get_rsync_site_spec(self, site: dict, append_prefix: str = None) -> tuple:

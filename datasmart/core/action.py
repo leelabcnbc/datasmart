@@ -518,14 +518,13 @@ class ManualDBActionWithSchema(DBActionWithSchema):
     @abstractmethod
     def __init__(self, config=None):
         super().__init__(config)
-        if config is None:
-            assert 'savepath' in self.config
 
         if 'batch_records' in self.config:
             self._batch = True
             # batch_records must have len(...) implemented.
             self._batch_length = len(self.config['batch_records'])
         else:
+            assert 'savepath' in self.config
             self._batch = False
             self.config['batch_records'] = []
 
