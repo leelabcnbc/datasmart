@@ -29,7 +29,7 @@ def check_one_meta(meta_dict):
     assert 'revocable' in meta_dict
     assert set(meta_dict.keys()) <= {'override_core_config', 'override_start_script',
                                      'action_name',
-                                     'revocable'}
+                                     'revocable', 'additional_files'}
 
 
 def construct_start_script(action_module, action_module_config, meta_this):
@@ -67,6 +67,16 @@ def generate_config_override(action_module_config, meta_this):
             config_file_this_content = pkgutil.get_data(action_module_config, config_file_for_this)
             assert config_file_this_content is not None
             result[module_name] = config_file_this_content
+    return result
+
+
+def generate_additional_files(action_module_config, meta_this):
+    result = {}
+    if 'additional_files' in meta_this:
+        for filename in meta_this['additional_files']:
+            config_file_this_content = pkgutil.get_data(action_module_config, filename)
+            assert config_file_this_content is not None
+            result[filename] = config_file_this_content
     return result
 
 
@@ -122,6 +132,9 @@ def main(install_folder, actions):
         assert ('.' not in action_flat_name) and (' ' not in action_flat_name)
         wrapper_script_content = generate_wrapper_script(action_flat_name)
 
+        # additional files
+        additional_file_dict_this = generate_additional_files(action_module_config, meta_this)
+
         # write action config
         action_config_dir_this = os.path.join(action_config_dir_root, *action_components)
         os.makedirs(action_config_dir_this)
@@ -147,9 +160,16 @@ def main(install_folder, actions):
         with open(wrapper_script_name, 'wb') as f_wrapper_script:
             f_wrapper_script.write(wrapper_script_content)
         os.chmod(wrapper_script_name, stat.S_IEXEC | os.stat(wrapper_script_name).st_mode)
+
+        # write additional files
+        for fname, f_content in additional_file_dict_this.items():
+            with open(os.path.join(install_folder, fname), 'wb') as f_addon_this:
+                f_addon_this.write(f_content)
+
         print('done')
-    print('config for core modules {} got overriden. Check them under {}'.format(modified_core_list,
-                                                                                 core_config_dir_root))
+    if modified_core_list:
+        print('config for core modules {} got overriden. Check them under {}'.format(modified_core_list,
+                                                                                     core_config_dir_root))
 
 
 if __name__ == '__main__':

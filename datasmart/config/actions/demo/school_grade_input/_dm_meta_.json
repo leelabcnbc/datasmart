@@ -1,0 +1,9 @@
+{
+  "action_name": "SchoolGradeInputAction",
+  "revocable": true,
+  "override_core_config": {
+    "db": "config_db.json",
+    "util": "config_util.json"
+  },
+  "additional_files": ["demo_school_grade_input.ipynb"]
+}
