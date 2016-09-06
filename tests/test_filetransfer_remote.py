@@ -180,14 +180,12 @@ class TestFileTransferRemote(unittest.TestCase):
 
 
         filetransfer = self.filetransfer
-
+        config_temp = deepcopy(filetransfer.config)
         try:
             os.makedirs(remote_append_dir, exist_ok=False)
             os.mkdir(local_data_dir)
             # ok. Now time to create files in local data
             file_util.create_files_from_filelist(filelist, local_data_dir, subdirs_this=subdirs_push)
-
-            config_temp = deepcopy(filetransfer.config)
             if not map_push:
                 filetransfer.config['site_mapping_push'] = []
 
@@ -196,7 +194,6 @@ class TestFileTransferRemote(unittest.TestCase):
             ret_push_1 = filetransfer.push(filelist=filelist, relative=relative_push,
                                            subdirs=subdirs_push, dest_append_prefix=dest_append_prefix, dryrun=True)
             self.assertEqual(ret_push, ret_push_1)
-            filetransfer.set_config(config_temp)
 
             # wait for a while for everything to sync.
             # time.sleep(2)
@@ -283,7 +280,7 @@ class TestFileTransferRemote(unittest.TestCase):
         dest_append_prefix = datasmart.core.util.path.joinpath_norm(*dest_append_prefix)
 
         # check that the remote server is kept the same.
-        ret_pushdest2 = ret_push['dest'].copy()
+        ret_pushdest2 = deepcopy(ret_push['dest'])
         assert 'append_prefix' in ret_pushdest2
         del ret_pushdest2['append_prefix']
         assert ret_pushdest2 == ret_fetch['src']
@@ -298,9 +295,9 @@ class TestFileTransferRemote(unittest.TestCase):
             "local": True
         }
 
-        from_site_auto = from_site.copy()
+        from_site_auto = deepcopy(from_site)
         from_site_auto['append_prefix'] = dest_append_prefix
-        to_site_auto = to_site.copy()
+        to_site_auto = deepcopy(to_site)
         to_site_auto['append_prefix'] = dest_append_prefix
 
         # check site

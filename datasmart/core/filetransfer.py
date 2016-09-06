@@ -362,6 +362,7 @@ class FileTransfer(Base):
         :param site: the site to be mapped
         :return: a copy of the actual site
         """
+        site = normalize_site(site)
         return get_site_mapping(self.config['site_mapping_push'], site)
 
     def _site_mapping_fetch(self, site: dict) -> dict:
@@ -370,6 +371,7 @@ class FileTransfer(Base):
         :param site: the site to be mapped
         :return: a **copy** of the actual site
         """
+        site = normalize_site(site)
         return get_site_mapping(self.config['site_mapping_fetch'], site)
 
     def _get_rsync_site_spec(self, site: dict, append_prefix: str = None) -> tuple:

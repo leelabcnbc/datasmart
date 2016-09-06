@@ -30,7 +30,7 @@ def normalize_site(site: dict) -> dict:
     :return: a normalized site.
     """
     # check that if only has keys path local and prefix.
-    site_new = site.copy()
+    site_new = deepcopy(site)
     if 'append_prefix' in site_new:
         del site_new['append_prefix']
 
