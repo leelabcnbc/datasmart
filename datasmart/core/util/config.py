@@ -1,7 +1,7 @@
 import json
 import os
 import pkgutil
-
+from .io import load_file
 from datasmart.core import global_config
 
 
@@ -34,8 +34,7 @@ def load_config(module_name: tuple, filename='config.json', load_json=True):
             # step 2. load config in ~/.datasmart
             file_to_use = config_path_global
 
-        with open(file_to_use, 'rt', encoding='utf-8') as config_stream:
-            config = config_stream.read()
+        config = load_file(file_to_use, load_json=False)
     else:
         # step 3. load default config
         config = pkgutil.get_data(

@@ -10,27 +10,17 @@ from .base import Base
 from .db import DB
 from .dbschema import DBSchema
 from .filetransfer import FileTransfer
-
-
-def _load_file(savepath, load_json):
-    """just created to have higher GPA in code climate"""
-    with open(savepath, 'rt', encoding='utf-8') as f:
-        content_back = f.read()
-        if load_json:
-            return json.loads(content_back)
-        else:
-            return content_back
+from .util.io import load_file, save_file
 
 
 def save_wait_and_load(content, savepath, prompt_text, load_json=True, overwrite=False):
     if os.path.exists(savepath) and not overwrite:
         print("file exists! not overwritten.")
     else:
-        with open(savepath, 'wt', encoding='utf-8') as f:
-            f.write(content)
+        save_file(savepath, content)
     print('file created at {}'.format(savepath))
     input(prompt_text)
-    return _load_file(savepath, load_json)
+    return load_file(savepath, load_json)
 
 
 class DBContextManager:
