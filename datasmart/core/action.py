@@ -14,6 +14,7 @@ from .util.io import load_file, save_file
 from itertools import zip_longest
 from copy import deepcopy
 
+
 def save_wait_and_load(content, savepath, prompt_text, load_json=True, overwrite=False):
     if os.path.exists(savepath) and not overwrite:
         print("file exists! not overwritten.")
@@ -93,6 +94,7 @@ class DBAction(Action):
     table_path = (None, None)
     db_modification = True  # whether this action would change the DB.
     no_query = False  # whether there's only trival query so that I can skip, or that your action does not need query
+
     # at all, and gets information through other channels.
 
     @property
@@ -347,7 +349,8 @@ class DBAction(Action):
             return True
 
         if os.path.exists(self.__prepare_result_path):
-            prepare_result = pickle.load(open(self.__prepare_result_path, 'rb'))
+            with open(self.__prepare_result_path, 'rb') as f_prepare:
+                prepare_result = pickle.load(f_prepare)
             assert 'result_ids' in prepare_result, "the pickled result looked bad!"
             assert prepare_result['_class_name_'] == self.__class__.__qualname__, \
                 "clean up '{}' and '{}', " \
@@ -565,8 +568,10 @@ class ManualDBActionWithSchema(DBActionWithSchema):
         print("custom info from this action follows.\n\n\n\n")
         print(self.custom_info())
         print("\n\n\n\n")
-        savepath = datasmart.core.util.path.joinpath_norm(self.global_config['project_root'], self.config['savepath'])
-        template_text = self.dbschema_instance.get_template()
+        if not self._batch:
+            savepath = datasmart.core.util.path.joinpath_norm(self.global_config['project_root'],
+                                                              self.config['savepath'])
+            template_text = self.dbschema_instance.get_template()
         for result_idx, (result_id, potential_record) in enumerate(zip_longest(self.result_ids,
                                                                                self.config['batch_records'],
                                                                                fillvalue=None), start=1):

@@ -46,8 +46,11 @@ class SchoolGradeInputAction(ManualDBActionWithSchema):
         return []
 
     def custom_info(self) -> str:
-        return "this is the DataSMART action for saving grade data for an exam.\n" \
-               "Please modify {} to your need".format(self.config['savepath'])
+        if not self._batch:
+            return "this is the DataSMART action for saving grade data for an exam.\n" \
+                   "Please modify {} to your need".format(self.config['savepath'])
+        else:
+            return "this is the DataSMART action for saving grade data for an exam, in batch mode"
 
     def before_insert_record(self, record):
         super().before_insert_record(record)
