@@ -21,14 +21,14 @@ local_tz = pytz.timezone(util_config['timezone'])
 
 def datetime_local_to_rfc3339_local(dt: datetime):
     assert dt.tzinfo is not None
-    rfc3339_local = dt.isoformat()
+    rfc3339_local = dt.replace(microsecond=0).isoformat()
     assert validate_rfc3339(rfc3339_local)
     return rfc3339_local
 
 
 def datetime_local_to_rfc3339_utc(dt: datetime):
     assert dt.tzinfo is not None
-    rfc3339_utc = dt.astimezone(pytz.utc).isoformat()
+    rfc3339_utc = dt.astimezone(pytz.utc).replace(microsecond=0).isoformat()
     assert validate_rfc3339(rfc3339_utc)
     return rfc3339_utc
 
@@ -52,13 +52,14 @@ def rfc3339_to_datetime(rfc3339str):
 
 def now_rfc3339_local():
     """return current time, in RFC3339 format, and zone of local_tz"""
-    rfc3339_local = pytz.utc.localize(datetime.utcnow()).astimezone(local_tz).isoformat()
+    rfc3339_local = pytz.utc.localize(datetime.utcnow()).astimezone(local_tz).replace(microsecond=0).isoformat()
+    # for simplicity, the microsecond part is always truncated, since Mongo may not save them in same resolution
     assert validate_rfc3339(rfc3339_local)
     return rfc3339_local
 
 
 def now_rfc3339_utc():
     """return current time, in RFC3339 format, and UTC"""
-    rfc3339_utc = pytz.utc.localize(datetime.utcnow()).isoformat()
+    rfc3339_utc = pytz.utc.localize(datetime.utcnow()).replace(microsecond=0).isoformat()
     assert validate_rfc3339(rfc3339_utc)
     return rfc3339_utc
