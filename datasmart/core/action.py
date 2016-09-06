@@ -12,7 +12,7 @@ from .dbschema import DBSchema
 from .filetransfer import FileTransfer
 from .util.io import load_file, save_file
 from itertools import zip_longest
-
+from copy import deepcopy
 
 def save_wait_and_load(content, savepath, prompt_text, load_json=True, overwrite=False):
     if os.path.exists(savepath) and not overwrite:
@@ -581,7 +581,7 @@ class ManualDBActionWithSchema(DBActionWithSchema):
                                                 self.class_identifier),
                                             load_json=True, overwrite=False)
             else:
-                record = potential_record
+                record = deepcopy(potential_record)
 
             record = self.import_record_template(record, result_id)
             self.before_insert_record(record)

@@ -44,6 +44,11 @@ def datetime_to_datetime_utc(dt, is_dst=None):
     return pytz.utc.localize(dt, is_dst=is_dst)
 
 
+def datetime_local_to_local(dt):
+    assert dt.tzinfo is not None
+    return dt.astimezone(local_tz)
+
+
 def rfc3339_to_datetime(rfc3339str):
     """returns a naive UTC datetime object representing the given rfc3339 timestamp"""
     return datetime.utcfromtimestamp(
