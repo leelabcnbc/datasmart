@@ -148,8 +148,9 @@ def main(install_folder, actions):
             f_wrapper_script.write(wrapper_script_content)
         os.chmod(wrapper_script_name, stat.S_IEXEC | os.stat(wrapper_script_name).st_mode)
         print('done')
-    print('config for core modules {} got overriden. Check them under {}'.format(modified_core_list,
-                                                                                 core_config_dir_root))
+    if modified_core_list:
+        print('config for core modules {} got overriden. Check them under {}'.format(modified_core_list,
+                                                                                     core_config_dir_root))
 
 
 if __name__ == '__main__':

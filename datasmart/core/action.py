@@ -7,10 +7,11 @@ from bson import ObjectId
 
 import datasmart.core.util.path
 from .base import Base
-from .db import DB
+from .db import DB, DBContextManager
 from .dbschema import DBSchema
 from .filetransfer import FileTransfer
 from .util.io import load_file, save_file
+from itertools import zip_longest
 
 
 def save_wait_and_load(content, savepath, prompt_text, load_json=True, overwrite=False):
@@ -21,22 +22,6 @@ def save_wait_and_load(content, savepath, prompt_text, load_json=True, overwrite
     print('file created at {}'.format(savepath))
     input(prompt_text)
     return load_file(savepath, load_json)
-
-
-class DBContextManager:
-    def __init__(self, db_instance):
-        self.__db_instance = db_instance
-
-    def __enter__(self):
-        assert self.__db_instance.client_instance is None
-        self.__db_instance.connect()
-        return self.__db_instance
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.__db_instance.disconnect()
-        assert self.__db_instance.client_instance is None
-        if exc_type is None:
-            return True
 
 
 class Action(Base):
@@ -534,6 +519,14 @@ class ManualDBActionWithSchema(DBActionWithSchema):
         if config is None:
             assert 'savepath' in self.config
 
+        if 'batch_records' in self.config:
+            self._batch = True
+            # batch_records must have len(...) implemented.
+            self._batch_length = len(self.config['batch_records'])
+        else:
+            self._batch = False
+            self.config['batch_records'] = []
+
     def validate_query_result(self, result) -> bool:
         return super().validate_query_result(result)
 
@@ -542,7 +535,14 @@ class ManualDBActionWithSchema(DBActionWithSchema):
 
     def prepare_post(self, query_result) -> dict:
         # ignore the query result, simply return a ID to go.
-        return {'result_ids': [ObjectId()]}
+        if self._batch:
+            result_ids = [ObjectId() for _ in range(self._batch_length)]
+            # return {'result_ids': [ObjectId()]}
+        else:
+            result_ids = [ObjectId()]
+        # all unique.
+        assert len(set(result_ids)) == len(result_ids)
+        return {'result_ids': result_ids}
 
     @abstractmethod
     def before_insert_record(self, record):
@@ -568,19 +568,31 @@ class ManualDBActionWithSchema(DBActionWithSchema):
         print("\n\n\n\n")
         savepath = datasmart.core.util.path.joinpath_norm(self.global_config['project_root'], self.config['savepath'])
         template_text = self.dbschema_instance.get_template()
-        record = save_wait_and_load(template_text, savepath,
-                                    "{} Step 1 Enter to continue after editing and saving the template...".format(
-                                        self.class_identifier),
-                                    load_json=True, overwrite=False)
-        record = self.import_record_template(record)
-        self.before_insert_record(record)
-        self.insert_results([record])
+        for result_idx, (result_id, potential_record) in enumerate(zip_longest(self.result_ids,
+                                                                               self.config['batch_records'],
+                                                                               fillvalue=None), start=1):
+            # check if it's already there.
+            if self.is_inserted_one(result_id):
+                print("done before {}/{}!".format(result_idx, len(self.result_ids)))
+                continue
+
+            if not self._batch:
+                record = save_wait_and_load(template_text, savepath,
+                                            "{} Step 1 Enter to continue after editing and saving the template...".format(
+                                                self.class_identifier),
+                                            load_json=True, overwrite=False)
+            else:
+                record = potential_record
+
+            record = self.import_record_template(record, result_id)
+            self.before_insert_record(record)
+            self.insert_results([record])
+            print("done {}/{}!".format(result_idx, len(self.result_ids)))
         print("done!")
 
-    def import_record_template(self, record):
+    def import_record_template(self, record, result_id):
         record = self.dbschema_instance.generate_record(record)
-        assert len(self.result_ids) == 1
         assert '_id' not in record
         # insert _id
-        record['_id'] = self.result_ids[0]
+        record['_id'] = result_id
         return record

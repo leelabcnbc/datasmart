@@ -12,13 +12,14 @@ class SchoolGradeJSL(jsl.Document):
     """class defining json schema for a school grade record.
 
     Here I recommend setting all fields to required, and optional fields are second-thought additions as you use more
-    and more.
+    and more. Use of notes as an optional field is just a demonstration, and it's not recommended for new action.
     """
     timestamp = jsl.StringField(format="date-time", required=True)
-    name = jsl.StringField(required=True)
+    first_name = jsl.StringField(required=True)
+    last_name = jsl.StringField(required=True)
     subject = jsl.StringField(enum=subjectlist, required=True)
     score = jsl.IntField(minimum=0, maximum=100, required=True)
-    notes = jsl.StringField(required=True)
+    notes = jsl.StringField()
 
 
 class SchoolGradeInputSchema(DBSchema):
