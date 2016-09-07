@@ -1,13 +1,12 @@
 import os
 import random
-from faker import Factory
 import string
 import shutil
 import time
 
-fake = Factory.create()
-
 import datasmart
+
+from . import fake
 
 
 def gen_filename_inner(word_len):
@@ -102,8 +101,6 @@ def rm_files_from_file_list(file_list, must_exist=True):
     time.sleep(0.25)  # buffer time for removal
     for file in file_list:
         assert not os.path.exists(file), "file {} still exist".format(file)
-
-
 
 
 def create_files_from_filelist(filelist, local_data_dir, subdirs_this=None):
