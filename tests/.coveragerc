@@ -1,0 +1,2 @@
+[run]
+omit = ../datasmart/test_util/*
