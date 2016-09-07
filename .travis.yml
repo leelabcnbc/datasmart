@@ -28,6 +28,7 @@ before_script:
   - sleep 5   # for mongo. see <https://docs.travis-ci.com/user/database-setup/#MongoDB>
   - cd tests
   - export PYTHONPATH=$PYTHONPATH:$(pwd)/..
+  - export PYTHONHASHSEED=42    # make faker deterministic  <https://github.com/joke2k/faker/issues/367>
 script: coverage run --branch --source=datasmart -m unittest discover
 after_success:
   - coveralls
