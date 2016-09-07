@@ -5,6 +5,8 @@ import shutil
 import time
 
 import datasmart
+import datasmart.core   # without this, if we call gen_filename without import datasmart.core elsewhere, it will fail
+# I think datasmart object is shared across everything.
 
 from . import fake
 
