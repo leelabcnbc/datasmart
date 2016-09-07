@@ -388,7 +388,7 @@ class FileTransfer(Base):
 
         if site['local']:
             # for local site, we don't need additional argument for ssh, only append prefix if needed.
-            rsync_site_spec = joinpath_norm(site['path'], append_prefix) + os.path.sep
+            rsync_site_spec = joinpath_norm(site['path'], append_prefix)
             # sep is IMPORTANT to force it being a directory. This is useful when filelist only has ONE file.
             rsync_ssh_arg_site = None
         else:
@@ -397,7 +397,7 @@ class FileTransfer(Base):
             site_info = self.config['remote_site_config'][site['path']]
             prefix = site['prefix']
             rsync_site_spec = site_info['ssh_username'] + '@' + site['path'] + ':' + shlex.quote(
-                joinpath_norm(prefix, append_prefix) + os.path.sep)
+                joinpath_norm(prefix, append_prefix))
             # must quote since this string after ``:`` is parsed by remote shell. quote it to remove all wildcard
             # expansion... should test wild card to see if it works...
             rsync_ssh_arg_site = ['-e', "ssh -p {}".format(site_info['ssh_port'])]
