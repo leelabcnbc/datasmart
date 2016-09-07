@@ -34,7 +34,7 @@ class TestFileTransferLocal(unittest.TestCase):
             "site_mapping_fetch": [],
             "remote_site_config": {},
             "default_site": {},
-            "quiet": False,  # less output.
+            "quiet": True,  # less output.
             "local_fetch_option": "copy"
         }
 
