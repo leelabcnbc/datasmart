@@ -4,7 +4,7 @@ from datasmart.actions.demo.file_download import FileDownloadAction
 
 class MyTestCase(unittest.TestCase):
     def test_something(self):
-        a = FileDownloadAction({})
+        a = FileDownloadAction()
         self.assertEqual(True, True)
 
 

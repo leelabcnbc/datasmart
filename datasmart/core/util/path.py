@@ -3,6 +3,8 @@ import string
 import collections
 from copy import deepcopy
 from datasmart.core import global_config
+from datasmart.core.schemautil.filetransfer import FileTransferSiteAny, FileTransferSiteStandard
+from datasmart.core.schemautil import validate
 
 _valid_chracters = set(string.printable) - set('\t\n\r\v\f')
 
@@ -31,6 +33,9 @@ def normalize_site(site: dict) -> dict:
     """
     # check that if only has keys path local and prefix.
     site_new = deepcopy(site)
+
+    assert validate(FileTransferSiteAny.get_schema(), site_new)
+
     if 'append_prefix' in site_new:
         del site_new['append_prefix']
 
@@ -45,7 +50,7 @@ def normalize_site(site: dict) -> dict:
         # convert everything to lower case and remove surrounding white characters.
         site_new['path'] = site_new['path'].lower().strip()
         site_new['prefix'] = joinpath_norm(site_new['prefix'])
-
+    assert validate(FileTransferSiteStandard.get_schema(), site_new)
     return site_new
 
 
@@ -145,6 +150,7 @@ def get_rsync_filelist(filelist: list, options: dict) -> tuple:
 
 
 def get_site_mapping(mapping_dict, site):
+    assert validate(FileTransferSiteStandard.get_schema(), site)
     for map_pair_ in mapping_dict:
         if site == map_pair_['from']:
             return deepcopy(map_pair_['to'])
