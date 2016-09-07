@@ -464,17 +464,18 @@ class DBAction(Action):
         ret = self.fetch_files(filelist, site=site, relative=True, local_fetch_option='copy', dryrun=True)
         return ret
 
-    def check_field_count(self, table_path=None, field_name='_id', field_value=None):
-        """ check the number of occurence for a given simple query.
-
-        :return:
-        """
-        if table_path is None:
-            table_path = self.table_path
-
-        with self.db_context as db_instance:
-            collection_instance = db_instance.client_instance[table_path[0]][table_path[1]]
-            return collection_instance.count({field_name: field_value})
+    # useless.
+    # def check_field_count(self, table_path=None, field_name='_id', field_value=None):
+    #     """ check the number of occurence for a given simple query.
+    #
+    #     :return:
+    #     """
+    #     if table_path is None:
+    #         table_path = self.table_path
+    #
+    #     with self.db_context as db_instance:
+    #         collection_instance = db_instance.client_instance[table_path[0]][table_path[1]]
+    #         return collection_instance.count({field_name: field_value})
 
 
 class DBActionWithSchema(DBAction):
