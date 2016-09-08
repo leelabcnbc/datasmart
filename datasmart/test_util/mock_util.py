@@ -11,6 +11,7 @@ class MockNames:
     git_repo_url = "datasmart.core.util.git.get_git_repo_url"
     git_repo_hash = "datasmart.core.util.git.get_git_repo_hash"
     git_check_clean = "datasmart.core.util.git.check_git_repo_clean"
+    git_check_remote_commit = "datasmart.core.util.git.check_commit_in_remote"
 
 
 def create_mocked_action(action_class: type, action_config=None, mock_options=None):
@@ -52,7 +53,8 @@ def parse_mock_option(key: str, value: object):
     elif key == 'git':
         return [mock.patch(MockNames.git_repo_url, return_value=value['git_url']),
                 mock.patch(MockNames.git_repo_hash, return_value=value['git_hash']),
-                mock.patch(MockNames.git_check_clean, return_value=True)]
+                mock.patch(MockNames.git_check_clean, return_value=True),
+                mock.patch(MockNames.git_check_remote_commit, return_value=True)]
     else:
         raise ValueError('unknown mock type!')
 
