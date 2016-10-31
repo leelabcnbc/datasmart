@@ -114,7 +114,7 @@ def main(install_folder, actions):
         action_module = 'datasmart.actions.' + '.'.join(action_components)
         print('working on {} ... '.format(action_module), end='')
         action_module_config = 'datasmart.config.actions.' + '.'.join(action_components)
-        meta_file_this = pkgutil.get_data(action_module_config, '_dm_meta_.json')
+        meta_file_this = pkgutil.get_data(action_module_config, '_ds_meta_.json')
         # ok. time to collect their meta file.
         assert meta_file_this is not None
         meta_this = json.loads(meta_file_this.decode())
