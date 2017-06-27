@@ -97,6 +97,7 @@ class TestFileTransferRemote(unittest.TestCase):
         nas_ip_address = "localhost"
         numlist = (1, 5, 20)  # test 1 file, 5 files, and 20 files.
         for idx, filecount in enumerate(numlist):
+            print('test {} files'.format(filecount))
             filelist = file_util.gen_filelist(filecount, abs_path=False)
 
             self.dirs_to_cleanup = file_util.gen_unique_local_paths(4)
