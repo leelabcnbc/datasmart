@@ -55,6 +55,7 @@ class TestFileTransferLocal(unittest.TestCase):
         self.filetransfer = datasmart.core.filetransfer.FileTransfer(config_this)
 
     def test_push(self):
+        print('test push')
         for x in itertools.product([self.subdirs, None], [True, False], [self.dest_append_prefix, None], [1, 5, 100]):
             subdirs_this, relative, dest_append_prefix, filecount = x
             with self.subTest(subdirs_this=subdirs_this, relative=relative, dest_append_prefix=dest_append_prefix,
@@ -65,6 +66,7 @@ class TestFileTransferLocal(unittest.TestCase):
                 file_util.rm_dirs_from_dir_list([self.local_data_dir, self.default_site_path])
 
     def test_fetch(self):
+        print('test fetch')
         for x in itertools.product([self.subdirs, None], [True, False], [1, 5, 100]):
             subdirs_this, relative, filecount = x
             with self.subTest(subdirs_this=subdirs_this, relative=relative, filecount=filecount):
