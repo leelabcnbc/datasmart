@@ -90,6 +90,7 @@ class TestFileTransferRemote(unittest.TestCase):
 
     #@unittest.skip("too long")
     def test_all(self):
+        print('test remote all')
         global local_map_dir_root
         global remote_dir_root
         username = getpass.getuser()
